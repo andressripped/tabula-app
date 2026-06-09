@@ -34,7 +34,7 @@
       "provider": "github",
       "owner": "andressripped",
       "repo": "tabula-app",
-      "releaseType": "release"
+      "releaseType": "draft"
     }
   },
   "dependencies": {
