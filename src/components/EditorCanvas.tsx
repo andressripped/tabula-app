@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, type KeyboardEvent } from 'react';
+import React, { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react';
 import type { Page, Block } from '../App';
 import './EditorCanvas.css';
 
@@ -8,10 +8,10 @@ interface EditorCanvasProps {
 }
 
 const COMMANDS = [
-  { label: 'Text', command: 'p', icon: '🔤', desc: 'Just start writing with plain text.' },
-  { label: 'Heading 1', command: 'h1', icon: '#', desc: 'Big section heading.' },
-  { label: 'Heading 2', command: 'h2', icon: '##', desc: 'Medium section heading.' },
-  { label: 'Heading 3', command: 'h3', icon: '###', desc: 'Small section heading.' },
+  { label: 'Text', command: 'p', icon: 'T', desc: 'Just start writing with plain text.' },
+  { label: 'Heading 1', command: 'h1', icon: 'H1', desc: 'Big section heading.' },
+  { label: 'Heading 2', command: 'h2', icon: 'H2', desc: 'Medium section heading.' },
+  { label: 'Heading 3', command: 'h3', icon: 'H3', desc: 'Small section heading.' },
   { label: 'Bulleted List', command: 'list', icon: '•', desc: 'Create a simple bulleted list.' },
   { label: 'To-do List', command: 'todo', icon: '☑', desc: 'Track tasks with a to-do list.' }
 ];
@@ -25,7 +25,7 @@ interface EditableBlockProps {
   innerRef: (el: HTMLDivElement | null) => void;
 }
 
-const EditableBlock: React.FC<EditableBlockProps> = ({
+const EditableBlock: React.FC<EditableBlockProps> = React.memo(({
   block,
   isFocused,
   onFocus,
@@ -34,15 +34,21 @@ const EditableBlock: React.FC<EditableBlockProps> = ({
   innerRef
 }) => {
   const ref = useRef<HTMLDivElement | null>(null);
+  const isComposing = useRef(false);
+  // Track the last content we set from React to avoid infinite loops
+  const lastSyncedContent = useRef(block.content);
 
-  // Sync content from state to DOM, but only if they are different to prevent cursor jumping
+  // Only sync content from React state -> DOM when the block's content 
+  // was changed externally (e.g., command menu clearing the slash).
+  // We compare against what we last pushed to avoid re-setting during typing.
   useEffect(() => {
-    if (ref.current) {
+    if (ref.current && block.content !== lastSyncedContent.current) {
       const currentText = ref.current.innerText;
       const normalizedCurrent = currentText.endsWith('\n') ? currentText.slice(0, -1) : currentText;
       if (normalizedCurrent !== block.content) {
         ref.current.innerText = block.content;
       }
+      lastSyncedContent.current = block.content;
     }
   }, [block.content]);
 
@@ -65,6 +71,15 @@ const EditableBlock: React.FC<EditableBlockProps> = ({
     }
   }, [isFocused]);
 
+  const handleInput = useCallback((e: React.FormEvent<HTMLDivElement>) => {
+    if (isComposing.current) return;
+    const text = e.currentTarget.innerText;
+    // Normalize trailing newline which browsers insert in contentEditable
+    const normalized = text.endsWith('\n') ? text.slice(0, -1) : text;
+    lastSyncedContent.current = normalized;
+    onChange(normalized);
+  }, [onChange]);
+
   return (
     <div
       ref={(el) => {
@@ -75,11 +90,11 @@ const EditableBlock: React.FC<EditableBlockProps> = ({
       contentEditable
       suppressContentEditableWarning
       data-placeholder="Type '/' for commands"
-      onInput={(e) => {
-        const text = e.currentTarget.innerText;
-        // Normalize trailing newline which browsers insert in contentEditable
-        const normalized = text.endsWith('\n') ? text.slice(0, -1) : text;
-        onChange(normalized);
+      onInput={handleInput}
+      onCompositionStart={() => { isComposing.current = true; }}
+      onCompositionEnd={(e) => {
+        isComposing.current = false;
+        handleInput(e as unknown as React.FormEvent<HTMLDivElement>);
       }}
       onKeyDown={onKeyDown}
       onFocus={onFocus}
@@ -89,7 +104,17 @@ const EditableBlock: React.FC<EditableBlockProps> = ({
       }}
     />
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render when something meaningful changes.
+  // We do NOT re-render just because content changed (the DOM handles that).
+  return (
+    prevProps.block.id === nextProps.block.id &&
+    prevProps.block.type === nextProps.block.type &&
+    prevProps.block.checked === nextProps.block.checked &&
+    prevProps.isFocused === nextProps.isFocused &&
+    prevProps.block.content === nextProps.block.content
+  );
+});
 
 const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
@@ -98,54 +123,69 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
   const [commandIndex, setCommandIndex] = useState(0);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
+  
+  // Use a ref to hold the latest page to avoid stale closures
+  const pageRef = useRef(page);
+  pageRef.current = page;
 
-  const updatePageTitle = (e: React.FormEvent<HTMLHeadingElement>) => {
-    onUpdate({ ...page, title: e.currentTarget.textContent || '' });
-  };
+  // Use a ref for onUpdate to keep callbacks stable
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
-  const updateBlockContent = (index: number, content: string) => {
-    const newBlocks = [...page.blocks];
-    newBlocks[index].content = content;
+  const updatePageTitle = useCallback((e: React.FormEvent<HTMLHeadingElement>) => {
+    const currentPage = pageRef.current;
+    onUpdateRef.current({ ...currentPage, title: e.currentTarget.textContent || '' });
+  }, []);
+
+  const updateBlockContent = useCallback((index: number, content: string) => {
+    const currentPage = pageRef.current;
+    const newBlocks = currentPage.blocks.map((b, i) => 
+      i === index ? { ...b, content } : b
+    );
     
     // Check for slash command
     if (content === '/') {
-      openCommandMenu(index);
-    } else if (commandMenuOpen && content.startsWith('/')) {
+      const el = blockRefs.current[index];
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        setMenuPosition({ top: rect.bottom + 10, left: rect.left });
+        setCommandMenuOpen(true);
+        setCommandQuery('');
+        setCommandIndex(0);
+      }
+    } else if (content.startsWith('/')) {
       setCommandQuery(content.slice(1));
     } else {
       setCommandMenuOpen(false);
     }
 
-    onUpdate({ ...page, blocks: newBlocks });
-  };
+    onUpdateRef.current({ ...currentPage, blocks: newBlocks });
+  }, []);
 
-  const updateBlockType = (index: number, type: Block['type']) => {
-    const newBlocks = [...page.blocks];
-    newBlocks[index].type = type;
-    newBlocks[index].content = newBlocks[index].content.replace(/^\/.*$/, ''); // clear command
-    onUpdate({ ...page, blocks: newBlocks });
+  const updateBlockType = useCallback((index: number, type: Block['type']) => {
+    const currentPage = pageRef.current;
+    const newBlocks = currentPage.blocks.map((b, i) =>
+      i === index ? { ...b, type, content: b.content.replace(/^\/.*$/, '') } : b
+    );
+    onUpdateRef.current({ ...currentPage, blocks: newBlocks });
     setCommandMenuOpen(false);
-    setFocusedIndex(index); // refocus
-  };
+    setFocusedIndex(index);
+  }, []);
 
-  const toggleTodo = (index: number) => {
-    const newBlocks = [...page.blocks];
-    newBlocks[index].checked = !newBlocks[index].checked;
-    onUpdate({ ...page, blocks: newBlocks });
-  };
+  const toggleTodo = useCallback((index: number) => {
+    const currentPage = pageRef.current;
+    const newBlocks = currentPage.blocks.map((b, i) =>
+      i === index ? { ...b, checked: !b.checked } : b
+    );
+    onUpdateRef.current({ ...currentPage, blocks: newBlocks });
+  }, []);
 
-  const openCommandMenu = (index: number) => {
-    const el = blockRefs.current[index];
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      setMenuPosition({ top: rect.bottom + 10, left: rect.left });
-      setCommandMenuOpen(true);
-      setCommandQuery('');
-      setCommandIndex(0);
-    }
-  };
+  const filteredCommands = COMMANDS.filter(cmd => 
+    cmd.label.toLowerCase().includes(commandQuery.toLowerCase()) || 
+    cmd.command.toLowerCase().includes(commandQuery.toLowerCase())
+  );
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>, index: number) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>, index: number) => {
     if (commandMenuOpen) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -173,7 +213,8 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      const newBlocks = [...page.blocks];
+      const currentPage = pageRef.current;
+      const newBlocks = [...currentPage.blocks];
       // Keep list/todo types when pressing enter
       const newType = (newBlocks[index].type === 'list' || newBlocks[index].type === 'todo') 
         ? newBlocks[index].type 
@@ -185,35 +226,62 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
         content: '',
         checked: false
       });
-      onUpdate({ ...page, blocks: newBlocks });
+      onUpdateRef.current({ ...currentPage, blocks: newBlocks });
       setFocusedIndex(index + 1);
     }
 
-    if (e.key === 'Backspace' && page.blocks[index].content === '') {
-      e.preventDefault();
-      if (page.blocks.length > 1) {
-        const newBlocks = [...page.blocks];
+    if (e.key === 'Backspace') {
+      const currentPage = pageRef.current;
+      const el = blockRefs.current[index];
+      const currentContent = el ? el.innerText.trim() : currentPage.blocks[index].content;
+      
+      if (currentContent === '' && currentPage.blocks.length > 1) {
+        e.preventDefault();
+        const newBlocks = [...currentPage.blocks];
         newBlocks.splice(index, 1);
-        onUpdate({ ...page, blocks: newBlocks });
+        onUpdateRef.current({ ...currentPage, blocks: newBlocks });
         setFocusedIndex(Math.max(0, index - 1));
       }
     }
 
     if (e.key === 'ArrowUp' && index > 0) {
-      setFocusedIndex(index - 1);
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const el = blockRefs.current[index];
+        if (el) {
+          // Only move to previous block if cursor is at the very start
+          const preCaretRange = range.cloneRange();
+          preCaretRange.selectNodeContents(el);
+          preCaretRange.setEnd(range.startContainer, range.startOffset);
+          if (preCaretRange.toString().length === 0) {
+            e.preventDefault();
+            setFocusedIndex(index - 1);
+          }
+        }
+      }
     }
     
-    if (e.key === 'ArrowDown' && index < page.blocks.length - 1) {
-      setFocusedIndex(index + 1);
+    if (e.key === 'ArrowDown' && index < pageRef.current.blocks.length - 1) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const el = blockRefs.current[index];
+        if (el) {
+          // Only move to next block if cursor is at the very end
+          const postCaretRange = range.cloneRange();
+          postCaretRange.selectNodeContents(el);
+          postCaretRange.setStart(range.endContainer, range.endOffset);
+          if (postCaretRange.toString().length === 0) {
+            e.preventDefault();
+            setFocusedIndex(index + 1);
+          }
+        }
+      }
     }
-  };
+  }, [commandMenuOpen, commandIndex, filteredCommands, updateBlockType]);
 
   const totalCharacters = page.blocks.reduce((acc, block) => acc + block.content.length, 0);
-
-  const filteredCommands = COMMANDS.filter(cmd => 
-    cmd.label.toLowerCase().includes(commandQuery.toLowerCase()) || 
-    cmd.command.toLowerCase().includes(commandQuery.toLowerCase())
-  );
 
   return (
     <div className="editor-canvas">
@@ -287,4 +355,3 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
 };
 
 export default EditorCanvas;
-
