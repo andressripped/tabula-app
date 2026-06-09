@@ -32,9 +32,16 @@ export interface AIModelStatus {
   llm: 'idle' | 'loading' | 'ready' | 'generating';
 }
 
+export interface AIProgressDetail {
+  progress: number;
+  loaded: number;
+  total: number;
+  file: string;
+}
+
 export interface AIModelProgress {
-  embedding: number;
-  llm: number;
+  embedding: AIProgressDetail;
+  llm: AIProgressDetail;
 }
 
 interface SettingsModalProps {
@@ -256,10 +263,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div className="ai-model-loading" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <div className="spinner" />
-                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Cargando modelo de embeddings ({Math.round(aiProgress.embedding)}%)...</span>
+                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                            {aiProgress.embedding.file ? `Cargando ${aiProgress.embedding.file.split('/').pop()}` : 'Cargando modelo de embeddings'} ({Math.round(aiProgress.embedding.progress)}%)...
+                          </span>
                         </div>
+                        {aiProgress.embedding.total > 0 && (
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '-4px' }}>
+                            {(aiProgress.embedding.loaded / (1024 * 1024)).toFixed(1)} MB / {(aiProgress.embedding.total / (1024 * 1024)).toFixed(1)} MB
+                          </div>
+                        )}
                         <div className="progress-bar-bg" style={{ height: '6px', background: 'var(--bg-hover)', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div className="progress-bar-fill" style={{ width: `${aiProgress.embedding}%`, height: '100%', background: 'var(--accent)', borderRadius: '3px', transition: 'width 0.1s ease-out' }} />
+                          <div className="progress-bar-fill" style={{ width: `${aiProgress.embedding.progress}%`, height: '100%', background: 'var(--accent)', borderRadius: '3px', transition: 'width 0.1s ease-out' }} />
                         </div>
                       </div>
                     )}
@@ -286,10 +300,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div className="ai-model-loading" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <div className="spinner" />
-                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Descargando modelo de lenguaje ({Math.round(aiProgress.llm)}%)...</span>
+                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                            {aiProgress.llm.file ? `Descargando ${aiProgress.llm.file.split('/').pop()}` : 'Descargando modelo de lenguaje'} ({Math.round(aiProgress.llm.progress)}%)...
+                          </span>
                         </div>
+                        {aiProgress.llm.total > 0 && (
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '-4px' }}>
+                            {(aiProgress.llm.loaded / (1024 * 1024)).toFixed(1)} MB / {(aiProgress.llm.total / (1024 * 1024)).toFixed(1)} MB
+                          </div>
+                        )}
                         <div className="progress-bar-bg" style={{ height: '6px', background: 'var(--bg-hover)', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div className="progress-bar-fill" style={{ width: `${aiProgress.llm}%`, height: '100%', background: 'var(--accent)', borderRadius: '3px', transition: 'width 0.1s ease-out' }} />
+                          <div className="progress-bar-fill" style={{ width: `${aiProgress.llm.progress}%`, height: '100%', background: 'var(--accent)', borderRadius: '3px', transition: 'width 0.1s ease-out' }} />
                         </div>
                       </div>
                     )}

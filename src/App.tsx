@@ -179,8 +179,8 @@ function App() {
     llm: 'idle'
   });
   const [aiProgress, setAiProgress] = useState<AIModelProgress>({
-    embedding: 0,
-    llm: 0
+    embedding: { progress: 0, loaded: 0, total: 0, file: '' },
+    llm: { progress: 0, loaded: 0, total: 0, file: '' }
   });
   const [pageEmbeddings, setPageEmbeddings] = useState<Record<string, PageEmbeddings>>({});
 
@@ -232,12 +232,13 @@ function App() {
     );
 
     workerRef.current.onmessage = (event) => {
-      const { type, model, status, progress, payload } = event.data;
+      const { type, model, status, payload } = event.data;
 
       if (type === 'status') {
         setAiStatus(prev => ({ ...prev, [model]: status }));
       } else if (type === 'progress') {
-        setAiProgress(prev => ({ ...prev, [model]: progress }));
+        const { progress, loaded, total, file } = event.data;
+        setAiProgress(prev => ({ ...prev, [model]: { progress, loaded, total, file } }));
       } else if (type === 'ready') {
         setAiStatus(prev => ({ ...prev, [model]: 'ready' }));
       } else if (type === 'embed-success') {
