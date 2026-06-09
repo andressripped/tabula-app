@@ -450,13 +450,4 @@
   user-select: none;
 }
 
-.block-wrapper.block-selected {
-  background-color: var(--accent-light, rgba(99, 102, 241, 0.15));
-  border-radius: 4px;
-}
 
-/* Disable native browser text selection when drag-selecting multiple blocks */
-.editor-canvas.dragging-selection * {
-  user-select: none !important;
-  -webkit-user-select: none !important;
-}

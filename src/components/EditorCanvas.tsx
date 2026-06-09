@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import React, { useState, useRef, useEffect, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { Page, Block } from '../App';
 import './EditorCanvas.css';
 
@@ -353,11 +353,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
   
-  // Selection State
-  const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
-  const isDraggingRef = useRef(false);
-  const [isDragging, setIsDragging] = useState(false);
-  
   const pageRef = useRef(page);
   const onUpdateRef = useRef(onUpdate);
 
@@ -365,81 +360,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
     pageRef.current = page;
     onUpdateRef.current = onUpdate;
   });
-
-  const selectedRange = useMemo(() => {
-    if (!selection) return null;
-    return {
-      start: Math.min(selection.start, selection.end),
-      end: Math.max(selection.start, selection.end)
-    };
-  }, [selection]);
-
-  const hasMultiSelection = selection !== null && selection.start !== selection.end;
-  const disableTextSelection = isDragging || hasMultiSelection;
-
-  // Clear selection drag state but keep selection if it spans multiple blocks
-  useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      isDraggingRef.current = false;
-      setIsDragging(false);
-      setSelection(prev => {
-        if (prev && prev.start === prev.end) {
-          return null; // Clear single block clicks
-        }
-        return prev;
-      });
-    };
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-  }, []);
-
-  // Selection keys (Delete / Copy)
-  useEffect(() => {
-    if (selectedRange === null || selectedRange.start === selectedRange.end) return;
-
-    const handleSelectionKeyDown = (e: globalThis.KeyboardEvent) => {
-      // Copy
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-        e.preventDefault();
-        const selectedText = page.blocks
-          .slice(selectedRange.start, selectedRange.end + 1)
-          .map(b => b.content)
-          .join('\n');
-        navigator.clipboard.writeText(selectedText);
-      }
-
-      // Delete/Backspace
-      if (e.key === 'Backspace' || e.key === 'Delete') {
-        e.preventDefault();
-        onUpdateRef.current(latestPage => {
-          const newBlocks = [...latestPage.blocks];
-          const count = selectedRange.end - selectedRange.start + 1;
-          if (newBlocks.length > count) {
-            newBlocks.splice(selectedRange.start, count);
-            setFocusedIndex(Math.max(0, selectedRange.start - 1));
-          } else {
-            newBlocks.splice(0, newBlocks.length, {
-              id: crypto.randomUUID(),
-              type: 'p' as const,
-              content: '',
-              checked: false
-            });
-            setFocusedIndex(0);
-          }
-          return { ...latestPage, blocks: newBlocks };
-        });
-        setSelection(null);
-      }
-
-      // Escape
-      if (e.key === 'Escape') {
-        setSelection(null);
-      }
-    };
-
-    window.addEventListener('keydown', handleSelectionKeyDown);
-    return () => window.removeEventListener('keydown', handleSelectionKeyDown);
-  }, [selectedRange, page.blocks]);
 
   const updatePageTitle = useCallback((e: React.FormEvent<HTMLHeadingElement>) => {
     const newTitle = e.currentTarget.textContent || '';
@@ -666,55 +586,15 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
     }
   }, [commandMenuOpen, commandIndex, filteredCommands, updateBlockType]);
 
-  const handleBlockMouseDown = useCallback((index: number, e: React.MouseEvent) => {
-    if (e.button === 0) {
-      isDraggingRef.current = true;
-      setIsDragging(true);
-      setSelection({ start: index, end: index });
-    }
-  }, []);
-
-  const handleBlockMouseEnter = useCallback((index: number) => {
-    if (isDraggingRef.current) {
-      setSelection(prev => {
-        if (!prev) return null;
-        if (prev.start !== index) {
-          setFocusedIndex(null);
-          if (document.activeElement instanceof HTMLElement) {
-            document.activeElement.blur();
-          }
-          // Clear any partial native browser selection that started before user-select was disabled
-          window.getSelection()?.removeAllRanges();
-        }
-        return { start: prev.start, end: index };
-      });
-    }
-  }, []);
-
-  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('editor-inner')) {
-      setSelection(null);
-      setFocusedIndex(null);
-    }
-  }, []);
-
-  const handleBlockFocus = useCallback((index: number) => {
-    setSelection(null);
-    setFocusedIndex(index);
-  }, []);
-
   const totalCharacters = page.blocks.reduce((acc, block) => acc + [...block.content].length, 0);
 
   // ─── Render block by type ──────────────────────────────────
   const renderBlock = (block: Block, index: number) => {
-    const isSelected = selectedRange !== null && index >= selectedRange.start && index <= selectedRange.end;
-    const wrapperClass = `block-wrapper block-${block.type} ${isSelected ? 'block-selected' : ''}`;
+    const wrapperClass = `block-wrapper block-${block.type}`;
     
     const blockProps = {
       className: wrapperClass,
-      key: block.id,
-      onMouseDown: (e: React.MouseEvent) => handleBlockMouseDown(index, e),
-      onMouseEnter: () => handleBlockMouseEnter(index)
+      key: block.id
     };
 
     switch (block.type) {
@@ -742,7 +622,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
             <CodeBlock
               block={block}
               isFocused={focusedIndex === index}
-              onFocus={() => handleBlockFocus(index)}
+              onFocus={() => setFocusedIndex(index)}
               onChange={(content) => updateBlockContent(index, content)}
               onLanguageChange={(lang) => updateBlockLanguage(index, lang)}
               onKeyDown={(e) => handleKeyDown(e, index)}
@@ -758,7 +638,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
             <EditableBlock
               block={block}
               isFocused={focusedIndex === index}
-              onFocus={() => handleBlockFocus(index)}
+              onFocus={() => setFocusedIndex(index)}
               onChange={(content) => updateBlockContent(index, content)}
               onKeyDown={(e) => handleKeyDown(e, index)}
               innerRef={(el) => { blockRefs.current[index] = el; }}
@@ -774,7 +654,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
             <EditableBlock
               block={block}
               isFocused={focusedIndex === index}
-              onFocus={() => handleBlockFocus(index)}
+              onFocus={() => setFocusedIndex(index)}
               onChange={(content) => updateBlockContent(index, content)}
               onKeyDown={(e) => handleKeyDown(e, index)}
               innerRef={(el) => { blockRefs.current[index] = el; }}
@@ -796,7 +676,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
             <EditableBlock
               block={block}
               isFocused={focusedIndex === index}
-              onFocus={() => handleBlockFocus(index)}
+              onFocus={() => setFocusedIndex(index)}
               onChange={(content) => updateBlockContent(index, content)}
               onKeyDown={(e) => handleKeyDown(e, index)}
               innerRef={(el) => { blockRefs.current[index] = el; }}
@@ -807,7 +687,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
   };
 
   return (
-    <div className={`editor-canvas ${disableTextSelection ? 'dragging-selection' : ''}`} onMouseDown={handleCanvasMouseDown}>
+    <div className="editor-canvas">
       <div className="editor-inner">
         <h1 
           className="page-title-input" 
