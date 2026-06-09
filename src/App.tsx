@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import './index.css';
 import Sidebar from './components/Sidebar';
-import EditorCanvas from './components/EditorCanvas';
+import TiptapEditor from './components/TiptapEditor';
+import { tiptapJSONToMarkdown } from './components/TiptapEditor';
 import SettingsModal, { type AppSettings, type AIModelStatus, type AIModelProgress } from './components/SettingsModal';
 import SearchPalette from './components/SearchPalette';
 import DatabaseView from './components/DatabaseView';
+import TabBar from './components/TabBar';
 import { getPageEmbeddings, savePageEmbeddings, type PageEmbeddings } from './services/vectorDb';
+import { generateFromPrompt } from './services/aiGenerator';
 
 // Basic Types
 export interface Block {
   id: string;
-  type: 'p' | 'h1' | 'h2' | 'h3' | 'list' | 'todo' | 'quote' | 'callout' | 'code' | 'divider' | 'image' | 'ai';
+  type: 'p' | 'h1' | 'h2' | 'h3' | 'list' | 'todo' | 'quote' | 'callout' | 'code' | 'divider' | 'image' | 'ai' | 'table';
   content: string;
   checked?: boolean;
   language?: string;
@@ -21,7 +24,8 @@ export interface Page {
   id: string;
   title: string;
   icon: string;
-  blocks: Block[];
+  blocks: Block[];    // Legacy — kept for migration, empty for new pages
+  content?: string;  // Tiptap JSON string (new format)
   createdAt: number;
   updatedAt: number;
 }
@@ -64,6 +68,7 @@ function applySettings(settings: AppSettings) {
     root.style.setProperty('--text-primary', '#1d1d1f');
     root.style.setProperty('--text-secondary', '#6e6e73');
     root.style.setProperty('--text-tertiary', '#aeaeb2');
+    root.setAttribute('data-theme', 'light');
   } else {
     root.style.setProperty('--bg-primary', '#0d0d0d');
     root.style.setProperty('--bg-sidebar', '#161616');
@@ -73,6 +78,7 @@ function applySettings(settings: AppSettings) {
     root.style.setProperty('--text-primary', '#f5f5f7');
     root.style.setProperty('--text-secondary', '#8e8e93');
     root.style.setProperty('--text-tertiary', '#48484a');
+    root.setAttribute('data-theme', 'dark');
   }
   
   // Accent color
@@ -89,6 +95,11 @@ function applySettings(settings: AppSettings) {
 // ─── Export helpers ──────────────────────────────────────────
 function pageToMarkdown(page: Page): string {
   let md = `# ${page.title}\n\n`;
+  if (page.content) {
+    md += tiptapJSONToMarkdown(page.content);
+    return md;
+  }
+  // Legacy block format
   for (const block of page.blocks) {
     switch (block.type) {
       case 'h1': md += `# ${block.content}\n\n`; break;
@@ -153,6 +164,21 @@ const getInitialActivePageId = (): string | null => {
 function App() {
   const [pages, setPages] = useState<Page[]>(() => getInitialPages());
   const [activePageId, setActivePageId] = useState<string | null>(() => getInitialActivePageId());
+  // Tab management — array of open page IDs, persisted in localStorage
+  const [openPageIds, setOpenPageIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('tabula_open_tabs');
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        // Validate IDs still exist in pages
+        const initialPages = getInitialPages();
+        const validIds = parsed.filter(id => initialPages.some(p => p.id === id));
+        if (validIds.length > 0) return validIds;
+      }
+    } catch {}
+    const initial = getInitialActivePageId();
+    return initial ? [initial] : [];
+  });
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
     const saved = localStorage.getItem('tabula_favorites');
     return saved ? JSON.parse(saved) : [];
@@ -389,18 +415,13 @@ function App() {
     });
   }, []);
 
-  const handleGenerateText = useCallback((prompt: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      if (!workerRef.current) return reject(new Error('AI worker not available'));
-      generateResolveRef.current = resolve;
-      generateRejectRef.current = reject;
-      setAiStatus(prev => ({ ...prev, llm: 'generating' }));
-      workerRef.current.postMessage({
-        type: 'generate',
-        payload: { prompt }
-      });
-    });
+  // generateFromPrompt is now used directly inside TiptapEditor
+  // keeping this for potential future API use
+  const _handleGenerateText = useCallback((prompt: string): Promise<string> => {
+    return Promise.resolve(generateFromPrompt(prompt));
   }, []);
+  void _handleGenerateText; // suppress unused warning
+
 
   const handleCancelLLM = useCallback(() => {
     if (workerRef.current) {
@@ -438,7 +459,25 @@ function App() {
     const newPage = createEmptyPage();
     setPages(prevPages => [newPage, ...prevPages]);
     setActivePageId(newPage.id);
+    setOpenPageIds(prev => [...prev, newPage.id]);
   }, []);
+
+  const handleSelectPage = useCallback((id: string) => {
+    setActivePageId(id);
+    setOpenPageIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  }, []);
+
+  const handleCloseTab = useCallback((id: string) => {
+    setOpenPageIds(prev => {
+      const newTabs = prev.filter(t => t !== id);
+      if (activePageId === id) {
+        const idx = prev.indexOf(id);
+        const newActive = newTabs[idx] ?? newTabs[idx - 1] ?? newTabs[0] ?? null;
+        setActivePageId(newActive);
+      }
+      return newTabs;
+    });
+  }, [activePageId]);
 
   const handleDeletePage = useCallback((id: string) => {
     setPages(prevPages => {
@@ -503,7 +542,14 @@ function App() {
   return (
     <>
       <div className="titlebar">
-        <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '8px' }}>Tabula</div>
+        <TabBar
+          pages={pages}
+          openPageIds={openPageIds}
+          activePageId={activePageId}
+          onSelectTab={handleSelectPage}
+          onCloseTab={handleCloseTab}
+          onNewPage={handleCreatePage}
+        />
       </div>
       <div className={`app-container ${zenMode ? 'zen-mode' : ''}`}>
         <Sidebar 
@@ -511,7 +557,7 @@ function App() {
           activePageId={activePageId} 
           favoriteIds={favoriteIds}
           trash={trash}
-          onSelectPage={setActivePageId}
+          onSelectPage={handleSelectPage}
           onCreatePage={handleCreatePage}
           onDeletePage={handleDeletePage}
           onToggleFavorite={handleToggleFavorite}
@@ -526,19 +572,20 @@ function App() {
         />
         <div className="main-content">
           {showDatabase ? (
-            <DatabaseView pages={pages} onSelectPage={(id) => { setActivePageId(id); setShowDatabase(false); }} />
+            <DatabaseView pages={pages} onSelectPage={(id) => { handleSelectPage(id); setShowDatabase(false); }} />
           ) : activePage ? (
-            <EditorCanvas
+            <TiptapEditor
               key={activePage.id}
               page={activePage}
               onUpdate={handleUpdatePage}
-              aiStatus={aiStatus}
-              onGenerateText={handleGenerateText}
-              onInitLLM={handleInitLLM}
             />
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)' }}>
-              No page selected. Create one!
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px' }}>
+              <span style={{ fontSize: '32px' }}>📄</span>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Abre una página desde el sidebar o crea una nueva</p>
+              <button onClick={handleCreatePage} style={{ padding: '8px 16px', borderRadius: '8px', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px' }}>
+                + Nueva página
+              </button>
             </div>
           )}
         </div>

@@ -25,17 +25,31 @@
 }
 
 .avatar {
-  width: 24px;
-  height: 24px;
-  background-color: var(--text-primary);
-  color: var(--bg-primary);
+  width: 28px;
+  height: 28px;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  font-weight: 700;
-  font-size: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
 }
+
+/* Dark mode: SVG logo (which is black/dark) gets inverted to white */
+.logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: invert(1); /* default = dark mode */
+  transition: filter 0.2s;
+}
+
+/* Light mode: no invert needed — logo stays dark */
+[data-theme="light"] .logo-img {
+  filter: invert(0);
+}
+
 
 .workspace-name {
   font-weight: 600;
