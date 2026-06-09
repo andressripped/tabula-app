@@ -15,7 +15,16 @@ let llmPipeline: any = null;
 let lastProgressTime = 0;
 function makeProgressCallback(modelName: 'embedding' | 'llm') {
   return (data: any) => {
-    if (data.status === 'progress') {
+    if (data.status === 'initiate') {
+      self.postMessage({
+        type: 'progress',
+        model: modelName,
+        file: data.file,
+        progress: 0,
+        loaded: 0,
+        total: 0
+      });
+    } else if (data.status === 'progress') {
       const now = Date.now();
       if (now - lastProgressTime > 150) {
         self.postMessage({
@@ -28,6 +37,15 @@ function makeProgressCallback(modelName: 'embedding' | 'llm') {
         });
         lastProgressTime = now;
       }
+    } else if (data.status === 'done') {
+      self.postMessage({
+        type: 'progress',
+        model: modelName,
+        file: data.file,
+        progress: 100,
+        loaded: data.loaded || 0,
+        total: data.total || 0
+      });
     } else if (data.status === 'ready') {
       self.postMessage({
         type: 'ready',
