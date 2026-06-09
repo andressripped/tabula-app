@@ -6,9 +6,8 @@
 }
 
 .sidebar-header {
-  padding: 0 16px 16px;
+  padding: 0 16px 12px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 12px;
 }
 
 .user-profile {
@@ -43,6 +42,61 @@
   font-size: 14px;
 }
 
+/* ─── Sidebar Action Buttons ─── */
+.sidebar-actions {
+  padding: 8px 8px 4px;
+}
+
+.sidebar-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-family);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.15s ease;
+}
+
+.sidebar-action-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-action-btn.small {
+  padding: 6px 12px;
+  font-size: 12px;
+  margin: 0 8px;
+  width: calc(100% - 16px);
+}
+
+.shortcut-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+/* ─── Section Labels ─── */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 12px 16px 4px;
+}
+
+/* ─── Page list ─── */
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
@@ -83,24 +137,62 @@
   font-size: 14px;
 }
 
+/* ─── Page Actions ─── */
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.page-item:hover .page-actions {
+  opacity: 1;
+}
+
+.pin-btn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.pin-btn:hover {
+  color: #f5c542;
+  background: rgba(245, 197, 66, 0.1);
+}
+
+.pin-btn.pinned {
+  color: #f5c542;
+}
+
+.page-item .page-actions:has(.pin-btn.pinned) {
+  opacity: 1;
+}
+
 .delete-btn {
   background: none;
   border: none;
   color: var(--text-tertiary);
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s;
   padding: 4px;
   border-radius: 4px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 }
 
 .delete-btn:hover {
   background-color: rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
-}
-
-.page-item:hover .delete-btn {
-  opacity: 1;
 }
 
 .new-page-btn {
@@ -114,6 +206,7 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
+  font-family: var(--font-family);
   transition: background 0.15s;
 }
 
@@ -122,13 +215,14 @@
   color: var(--text-primary);
 }
 
+/* ─── Footer ─── */
 .sidebar-footer {
-  padding: 12px 16px;
+  padding: 8px 8px;
   border-top: 1px solid var(--border);
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
 }
 
 .settings-btn {
@@ -141,6 +235,7 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
+  font-family: var(--font-family);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -160,4 +255,118 @@
 
 .settings-btn:hover .settings-icon {
   transform: rotate(45deg);
+}
+
+/* ─── Trash ─── */
+.trash-btn {
+  padding: 8px 12px;
+}
+
+.trash-count {
+  margin-left: auto;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 7px;
+  border-radius: 10px;
+  color: var(--text-tertiary);
+}
+
+.trash-panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 4px 0;
+  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.trash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.trash-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.trash-empty-btn {
+  background: none;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--font-family);
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.trash-empty-btn:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.trash-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  gap: 8px;
+  transition: background 0.1s;
+}
+
+.trash-item:hover {
+  background: var(--bg-hover);
+}
+
+.trash-item-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.trash-item-title {
+  font-size: 13px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.trash-item-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.trash-item:hover .trash-item-actions {
+  opacity: 1;
+}
+
+.trash-restore-btn,
+.trash-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s;
+}
+
+.trash-restore-btn:hover {
+  color: var(--accent);
+  background: rgba(110, 91, 250, 0.1);
+}
+
+.trash-delete-btn:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
 }

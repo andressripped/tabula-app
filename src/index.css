@@ -114,3 +114,19 @@ input, textarea, [contenteditable="true"] {
   color: inherit;
   font-family: inherit;
 }
+
+/* Zen Mode - hides sidebar */
+.app-container.zen-mode .sidebar {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-right: none;
+  padding: 0;
+  pointer-events: none;
+}
+
+.app-container .sidebar {
+  transition: width 0.3s ease, opacity 0.2s ease, padding 0.3s ease;
+}
+

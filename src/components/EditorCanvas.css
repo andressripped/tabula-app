@@ -76,7 +76,7 @@
   font-size: 16px;
 }
 
-/* Lists */
+/* ─── Lists ─── */
 .block-list {
   padding-left: 24px;
 }
@@ -89,7 +89,7 @@
   user-select: none;
 }
 
-/* Todos */
+/* ─── Todos ─── */
 .block-todo {
   padding-left: 30px;
   margin-top: 4px;
@@ -127,11 +127,245 @@
   font-weight: 700;
 }
 
-/* Command Menu (Glassmorphism) */
+/* ─── Quote Block ─── */
+.block-quote {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.quote-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.block-quote .block-content {
+  font-size: 16px;
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ─── Callout Block ─── */
+.block-callout {
+  background: rgba(110, 91, 250, 0.08);
+  border: 1px solid rgba(110, 91, 250, 0.15);
+  border-radius: 8px;
+  padding: 14px 14px 14px 44px;
+  margin: 8px 0;
+  position: relative;
+}
+
+.callout-icon {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.block-callout .block-content {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ─── Code Block ─── */
+.block-code {
+  margin: 8px 0;
+  display: block;
+}
+
+.code-block-container {
+  width: 100%;
+  background: #1a1a1e;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border);
+}
+
+.code-language-select {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: var(--font-family);
+  cursor: pointer;
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+
+.code-language-select option {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.code-copy-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.code-block-content {
+  padding: 14px 16px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #e0e0e0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  outline: none;
+  min-height: 40px;
+  tab-size: 2;
+}
+
+.code-block-content:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+/* ─── Divider Block ─── */
+.block-divider {
+  margin: 12px 0;
+  display: block;
+}
+
+.divider-line {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  width: 100%;
+}
+
+/* ─── Image Block ─── */
+.block-image {
+  margin: 12px 0;
+  display: block;
+}
+
+.image-block-container {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.image-block-img {
+  width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.image-block-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.image-block-container:hover .image-block-actions {
+  opacity: 1;
+}
+
+.image-action-btn {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.image-action-btn:hover {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.image-action-btn.danger:hover {
+  background: rgba(220, 38, 38, 0.8);
+}
+
+.image-block-placeholder {
+  width: 100%;
+  padding: 40px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.image-block-placeholder:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.image-placeholder-icon {
+  opacity: 0.5;
+}
+
+/* ─── Command Menu (Glassmorphism) ─── */
 .command-menu {
   position: fixed;
   width: 300px;
-  background-color: rgba(28, 28, 30, 0.85); /* --bg-elevated but translucent */
+  max-height: 400px;
+  overflow-y: auto;
+  background-color: rgba(28, 28, 30, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
@@ -141,7 +375,6 @@
   display: flex;
   flex-direction: column;
   padding: 8px;
-  overflow: hidden;
 }
 
 .command-menu-header {
@@ -181,7 +414,8 @@
   justify-content: center;
   border-radius: 6px;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 .command-item.selected .command-icon, .command-item:hover .command-icon {

@@ -8,14 +8,26 @@ interface EditorCanvasProps {
 }
 
 const COMMANDS = [
-  { label: 'Text', command: 'p', icon: 'T', desc: 'Just start writing with plain text.' },
+  { label: 'Text', command: 'p', icon: 'Aa', desc: 'Just start writing with plain text.' },
   { label: 'Heading 1', command: 'h1', icon: 'H1', desc: 'Big section heading.' },
   { label: 'Heading 2', command: 'h2', icon: 'H2', desc: 'Medium section heading.' },
   { label: 'Heading 3', command: 'h3', icon: 'H3', desc: 'Small section heading.' },
   { label: 'Bulleted List', command: 'list', icon: '•', desc: 'Create a simple bulleted list.' },
-  { label: 'To-do List', command: 'todo', icon: '☑', desc: 'Track tasks with a to-do list.' }
+  { label: 'To-do List', command: 'todo', icon: '☑', desc: 'Track tasks with a to-do list.' },
+  { label: 'Quote', command: 'quote', icon: '"', desc: 'Capture a quote.' },
+  { label: 'Callout', command: 'callout', icon: '!', desc: 'Make text stand out.' },
+  { label: 'Code', command: 'code', icon: '</>', desc: 'Capture a code snippet.' },
+  { label: 'Divider', command: 'divider', icon: '—', desc: 'Visually divide blocks.' },
+  { label: 'Image', command: 'image', icon: '▣', desc: 'Upload an image from your computer.' }
 ];
 
+const CODE_LANGUAGES = [
+  'plain', 'javascript', 'typescript', 'python', 'html', 'css', 'json', 'bash', 'sql', 'java', 'c', 'cpp', 'csharp', 'go', 'rust', 'ruby', 'php'
+];
+
+// ─────────────────────────────────────────────────────────────
+// EditableBlock — handles contentEditable without cursor issues
+// ─────────────────────────────────────────────────────────────
 interface EditableBlockProps {
   block: Block;
   isFocused: boolean;
@@ -23,6 +35,7 @@ interface EditableBlockProps {
   onChange: (content: string) => void;
   onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
   innerRef: (el: HTMLDivElement | null) => void;
+  placeholder?: string;
 }
 
 const EditableBlock: React.FC<EditableBlockProps> = React.memo(({
@@ -31,16 +44,13 @@ const EditableBlock: React.FC<EditableBlockProps> = React.memo(({
   onFocus,
   onChange,
   onKeyDown,
-  innerRef
+  innerRef,
+  placeholder = "Type '/' for commands"
 }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const isComposing = useRef(false);
-  // Track the last content we set from React to avoid infinite loops
   const lastSyncedContent = useRef(block.content);
 
-  // Only sync content from React state -> DOM when the block's content 
-  // was changed externally (e.g., command menu clearing the slash).
-  // We compare against what we last pushed to avoid re-setting during typing.
   useEffect(() => {
     if (ref.current && block.content !== lastSyncedContent.current) {
       const currentText = ref.current.innerText;
@@ -52,13 +62,10 @@ const EditableBlock: React.FC<EditableBlockProps> = React.memo(({
     }
   }, [block.content]);
 
-  // Handle focus when requested by the parent
   useEffect(() => {
     if (isFocused && ref.current) {
       if (document.activeElement !== ref.current) {
         ref.current.focus();
-        
-        // Move caret to the end
         const selection = window.getSelection();
         if (selection) {
           const range = document.createRange();
@@ -74,7 +81,6 @@ const EditableBlock: React.FC<EditableBlockProps> = React.memo(({
   const handleInput = useCallback((e: React.FormEvent<HTMLDivElement>) => {
     if (isComposing.current) return;
     const text = e.currentTarget.innerText;
-    // Normalize trailing newline which browsers insert in contentEditable
     const normalized = text.endsWith('\n') ? text.slice(0, -1) : text;
     lastSyncedContent.current = normalized;
     onChange(normalized);
@@ -89,7 +95,7 @@ const EditableBlock: React.FC<EditableBlockProps> = React.memo(({
       className="block-content"
       contentEditable
       suppressContentEditableWarning
-      data-placeholder="Type '/' for commands"
+      data-placeholder={placeholder}
       onInput={handleInput}
       onCompositionStart={() => { isComposing.current = true; }}
       onCompositionEnd={(e) => {
@@ -105,8 +111,6 @@ const EditableBlock: React.FC<EditableBlockProps> = React.memo(({
     />
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison: only re-render when something meaningful changes.
-  // We do NOT re-render just because content changed (the DOM handles that).
   return (
     prevProps.block.id === nextProps.block.id &&
     prevProps.block.type === nextProps.block.type &&
@@ -116,6 +120,210 @@ const EditableBlock: React.FC<EditableBlockProps> = React.memo(({
   );
 });
 
+// ─────────────────────────────────────────────────────────────
+// CodeBlock — special block with language selector & copy button
+// ─────────────────────────────────────────────────────────────
+interface CodeBlockProps {
+  block: Block;
+  isFocused: boolean;
+  onFocus: () => void;
+  onChange: (content: string) => void;
+  onLanguageChange: (lang: string) => void;
+  onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
+  innerRef: (el: HTMLDivElement | null) => void;
+}
+
+const CodeBlock: React.FC<CodeBlockProps> = React.memo(({
+  block,
+  isFocused,
+  onFocus,
+  onChange,
+  onLanguageChange,
+  onKeyDown,
+  innerRef
+}) => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const isComposing = useRef(false);
+  const lastSyncedContent = useRef(block.content);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (ref.current && block.content !== lastSyncedContent.current) {
+      const currentText = ref.current.innerText;
+      const normalizedCurrent = currentText.endsWith('\n') ? currentText.slice(0, -1) : currentText;
+      if (normalizedCurrent !== block.content) {
+        ref.current.innerText = block.content;
+      }
+      lastSyncedContent.current = block.content;
+    }
+  }, [block.content]);
+
+  useEffect(() => {
+    if (isFocused && ref.current) {
+      if (document.activeElement !== ref.current) {
+        ref.current.focus();
+        const selection = window.getSelection();
+        if (selection) {
+          const range = document.createRange();
+          range.selectNodeContents(ref.current);
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+    }
+  }, [isFocused]);
+
+  const handleInput = useCallback((e: React.FormEvent<HTMLDivElement>) => {
+    if (isComposing.current) return;
+    const text = e.currentTarget.innerText;
+    const normalized = text.endsWith('\n') ? text.slice(0, -1) : text;
+    lastSyncedContent.current = normalized;
+    onChange(normalized);
+  }, [onChange]);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(block.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [block.content]);
+
+  const handleCodeKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    // Allow Enter for newlines inside code blocks (don't create new block)
+    if (e.key === 'Enter' && !e.shiftKey) {
+      // Let the browser handle the newline naturally in code blocks
+      // But prevent the parent's Enter handler from firing
+      e.stopPropagation();
+      return;
+    }
+    // Tab for indentation
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      document.execCommand('insertText', false, '  ');
+      return;
+    }
+    onKeyDown(e);
+  }, [onKeyDown]);
+
+  return (
+    <div className="code-block-container">
+      <div className="code-block-header">
+        <select
+          className="code-language-select"
+          value={block.language || 'plain'}
+          onChange={(e) => onLanguageChange(e.target.value)}
+        >
+          {CODE_LANGUAGES.map(lang => (
+            <option key={lang} value={lang}>{lang}</option>
+          ))}
+        </select>
+        <button className="code-copy-btn" onClick={handleCopy}>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <div
+        ref={(el) => {
+          ref.current = el;
+          innerRef(el);
+        }}
+        className="code-block-content"
+        contentEditable
+        suppressContentEditableWarning
+        data-placeholder="Write your code..."
+        onInput={handleInput}
+        onCompositionStart={() => { isComposing.current = true; }}
+        onCompositionEnd={(e) => {
+          isComposing.current = false;
+          handleInput(e as unknown as React.FormEvent<HTMLDivElement>);
+        }}
+        onKeyDown={handleCodeKeyDown}
+        onFocus={onFocus}
+        spellCheck={false}
+      />
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.block.id === nextProps.block.id &&
+    prevProps.block.type === nextProps.block.type &&
+    prevProps.block.language === nextProps.block.language &&
+    prevProps.isFocused === nextProps.isFocused &&
+    prevProps.block.content === nextProps.block.content
+  );
+});
+
+// ─────────────────────────────────────────────────────────────
+// ImageBlock — image upload & display
+// ─────────────────────────────────────────────────────────────
+interface ImageBlockProps {
+  block: Block;
+  onImageUpload: (dataUrl: string) => void;
+  onRemove: () => void;
+}
+
+const ImageBlock: React.FC<ImageBlockProps> = ({ block, onImageUpload, onRemove }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        onImageUpload(ev.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  if (block.imageData) {
+    return (
+      <div className="image-block-container">
+        <img src={block.imageData} alt="" className="image-block-img" />
+        <div className="image-block-actions">
+          <button className="image-action-btn" onClick={() => fileInputRef.current?.click()}>
+            Replace
+          </button>
+          <button className="image-action-btn danger" onClick={onRemove}>
+            Remove
+          </button>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="image-block-placeholder" onClick={() => fileInputRef.current?.click()}>
+      <div className="image-placeholder-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+      </div>
+      <span>Click to upload an image</span>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+// Main EditorCanvas
+// ─────────────────────────────────────────────────────────────
 const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [commandMenuOpen, setCommandMenuOpen] = useState(false);
@@ -124,11 +332,8 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
   
-  // Use a ref to hold the latest page to avoid stale closures
   const pageRef = useRef(page);
   pageRef.current = page;
-
-  // Use a ref for onUpdate to keep callbacks stable
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
@@ -143,7 +348,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
       i === index ? { ...b, content } : b
     );
     
-    // Check for slash command
     if (content === '/') {
       const el = blockRefs.current[index];
       if (el) {
@@ -164,12 +368,80 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
 
   const updateBlockType = useCallback((index: number, type: Block['type']) => {
     const currentPage = pageRef.current;
+    
+    // For non-editable blocks, just insert them
+    if (type === 'divider') {
+      const newBlocks = [...currentPage.blocks];
+      newBlocks[index] = { ...newBlocks[index], type: 'divider', content: '' };
+      // Add an empty paragraph after the divider for continued typing
+      newBlocks.splice(index + 1, 0, {
+        id: crypto.randomUUID(),
+        type: 'p',
+        content: '',
+        checked: false
+      });
+      onUpdateRef.current({ ...currentPage, blocks: newBlocks });
+      setCommandMenuOpen(false);
+      setFocusedIndex(index + 1);
+      return;
+    }
+
+    if (type === 'image') {
+      const newBlocks = [...currentPage.blocks];
+      newBlocks[index] = { ...newBlocks[index], type: 'image', content: '' };
+      // Add an empty paragraph after the image for continued typing
+      newBlocks.splice(index + 1, 0, {
+        id: crypto.randomUUID(),
+        type: 'p',
+        content: '',
+        checked: false
+      });
+      onUpdateRef.current({ ...currentPage, blocks: newBlocks });
+      setCommandMenuOpen(false);
+      setFocusedIndex(index + 1);
+      return;
+    }
+
+    if (type === 'code') {
+      const newBlocks = currentPage.blocks.map((b, i) =>
+        i === index ? { ...b, type: type as Block['type'], content: '', language: 'javascript' } : b
+      );
+      onUpdateRef.current({ ...currentPage, blocks: newBlocks });
+      setCommandMenuOpen(false);
+      setFocusedIndex(index);
+      return;
+    }
+
     const newBlocks = currentPage.blocks.map((b, i) =>
       i === index ? { ...b, type, content: b.content.replace(/^\/.*$/, '') } : b
     );
     onUpdateRef.current({ ...currentPage, blocks: newBlocks });
     setCommandMenuOpen(false);
     setFocusedIndex(index);
+  }, []);
+
+  const updateBlockLanguage = useCallback((index: number, language: string) => {
+    const currentPage = pageRef.current;
+    const newBlocks = currentPage.blocks.map((b, i) =>
+      i === index ? { ...b, language } : b
+    );
+    onUpdateRef.current({ ...currentPage, blocks: newBlocks });
+  }, []);
+
+  const updateBlockImage = useCallback((index: number, imageData: string) => {
+    const currentPage = pageRef.current;
+    const newBlocks = currentPage.blocks.map((b, i) =>
+      i === index ? { ...b, imageData } : b
+    );
+    onUpdateRef.current({ ...currentPage, blocks: newBlocks });
+  }, []);
+
+  const removeBlockImage = useCallback((index: number) => {
+    const currentPage = pageRef.current;
+    const newBlocks = currentPage.blocks.map((b, i) =>
+      i === index ? { ...b, imageData: undefined } : b
+    );
+    onUpdateRef.current({ ...currentPage, blocks: newBlocks });
   }, []);
 
   const toggleTodo = useCallback((index: number) => {
@@ -215,7 +487,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
       e.preventDefault();
       const currentPage = pageRef.current;
       const newBlocks = [...currentPage.blocks];
-      // Keep list/todo types when pressing enter
       const newType = (newBlocks[index].type === 'list' || newBlocks[index].type === 'todo') 
         ? newBlocks[index].type 
         : 'p';
@@ -250,7 +521,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
         const range = sel.getRangeAt(0);
         const el = blockRefs.current[index];
         if (el) {
-          // Only move to previous block if cursor is at the very start
           const preCaretRange = range.cloneRange();
           preCaretRange.selectNodeContents(el);
           preCaretRange.setEnd(range.startContainer, range.startOffset);
@@ -268,7 +538,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
         const range = sel.getRangeAt(0);
         const el = blockRefs.current[index];
         if (el) {
-          // Only move to next block if cursor is at the very end
           const postCaretRange = range.cloneRange();
           postCaretRange.selectNodeContents(el);
           postCaretRange.setStart(range.endContainer, range.endOffset);
@@ -281,7 +550,99 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
     }
   }, [commandMenuOpen, commandIndex, filteredCommands, updateBlockType]);
 
+
   const totalCharacters = page.blocks.reduce((acc, block) => acc + block.content.length, 0);
+
+  // ─── Render block by type ──────────────────────────────────
+  const renderBlock = (block: Block, index: number) => {
+    switch (block.type) {
+      case 'divider':
+        return (
+          <div className="block-wrapper block-divider" key={block.id}>
+            <hr className="divider-line" />
+          </div>
+        );
+      
+      case 'image':
+        return (
+          <div className="block-wrapper block-image" key={block.id}>
+            <ImageBlock
+              block={block}
+              onImageUpload={(data) => updateBlockImage(index, data)}
+              onRemove={() => removeBlockImage(index)}
+            />
+          </div>
+        );
+
+      case 'code':
+        return (
+          <div className="block-wrapper block-code" key={block.id}>
+            <CodeBlock
+              block={block}
+              isFocused={focusedIndex === index}
+              onFocus={() => setFocusedIndex(index)}
+              onChange={(content) => updateBlockContent(index, content)}
+              onLanguageChange={(lang) => updateBlockLanguage(index, lang)}
+              onKeyDown={(e) => handleKeyDown(e, index)}
+              innerRef={(el) => { blockRefs.current[index] = el; }}
+            />
+          </div>
+        );
+
+      case 'quote':
+        return (
+          <div className="block-wrapper block-quote" key={block.id}>
+            <div className="quote-bar" />
+            <EditableBlock
+              block={block}
+              isFocused={focusedIndex === index}
+              onFocus={() => setFocusedIndex(index)}
+              onChange={(content) => updateBlockContent(index, content)}
+              onKeyDown={(e) => handleKeyDown(e, index)}
+              innerRef={(el) => { blockRefs.current[index] = el; }}
+              placeholder="Write a quote..."
+            />
+          </div>
+        );
+
+      case 'callout':
+        return (
+          <div className="block-wrapper block-callout" key={block.id}>
+            <div className="callout-icon">i</div>
+            <EditableBlock
+              block={block}
+              isFocused={focusedIndex === index}
+              onFocus={() => setFocusedIndex(index)}
+              onChange={(content) => updateBlockContent(index, content)}
+              onKeyDown={(e) => handleKeyDown(e, index)}
+              innerRef={(el) => { blockRefs.current[index] = el; }}
+              placeholder="Type a callout..."
+            />
+          </div>
+        );
+
+      default:
+        return (
+          <div key={block.id} className={`block-wrapper block-${block.type}`}>
+            {block.type === 'todo' && (
+              <div 
+                className={`todo-checkbox ${block.checked ? 'checked' : ''}`}
+                onClick={() => toggleTodo(index)}
+              />
+            )}
+            {block.type === 'list' && <span className="list-bullet">•</span>}
+            <EditableBlock
+              block={block}
+              isFocused={focusedIndex === index}
+              onFocus={() => setFocusedIndex(index)}
+              onChange={(content) => updateBlockContent(index, content)}
+              onKeyDown={(e) => handleKeyDown(e, index)}
+              innerRef={(el) => { blockRefs.current[index] = el; }}
+            />
+          </div>
+        );
+    }
+  };
 
   return (
     <div className="editor-canvas">
@@ -302,29 +663,11 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
         </h1>
 
         <div className="blocks-container">
-          {page.blocks.map((block, index) => (
-            <div key={block.id} className={`block-wrapper block-${block.type}`}>
-              {block.type === 'todo' && (
-                <div 
-                  className={`todo-checkbox ${block.checked ? 'checked' : ''}`}
-                  onClick={() => toggleTodo(index)}
-                />
-              )}
-              {block.type === 'list' && <span className="list-bullet">•</span>}
-              <EditableBlock
-                block={block}
-                isFocused={focusedIndex === index}
-                onFocus={() => setFocusedIndex(index)}
-                onChange={(content) => updateBlockContent(index, content)}
-                onKeyDown={(e) => handleKeyDown(e, index)}
-                innerRef={(el) => { blockRefs.current[index] = el; }}
-              />
-            </div>
-          ))}
+          {page.blocks.map((block, index) => renderBlock(block, index))}
         </div>
         
         <div className="editor-footer">
-          <span>{totalCharacters} caracteres</span>
+          <span>{totalCharacters} characters</span>
         </div>
       </div>
 
