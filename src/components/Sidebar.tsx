@@ -82,7 +82,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className="sidebar">
       <div className="sidebar-header">
         <div className="user-profile">
-          <div className="avatar">T</div>
+          <div className="avatar" style={{ background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src="/logo.png" alt="Tabula Logo" style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
+          </div>
           <span className="workspace-name">My Workspace</span>
         </div>
       </div>
