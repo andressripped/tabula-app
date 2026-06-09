@@ -356,6 +356,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
   // Selection State
   const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
   const isDraggingRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
   
   const pageRef = useRef(page);
   const onUpdateRef = useRef(onUpdate);
@@ -373,10 +374,14 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
     };
   }, [selection]);
 
+  const hasMultiSelection = selection !== null && selection.start !== selection.end;
+  const disableTextSelection = isDragging || hasMultiSelection;
+
   // Clear selection drag state but keep selection if it spans multiple blocks
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       isDraggingRef.current = false;
+      setIsDragging(false);
       setSelection(prev => {
         if (prev && prev.start === prev.end) {
           return null; // Clear single block clicks
@@ -664,6 +669,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
   const handleBlockMouseDown = useCallback((index: number, e: React.MouseEvent) => {
     if (e.button === 0) {
       isDraggingRef.current = true;
+      setIsDragging(true);
       setSelection({ start: index, end: index });
     }
   }, []);
@@ -677,6 +683,8 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
           if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
           }
+          // Clear any partial native browser selection that started before user-select was disabled
+          window.getSelection()?.removeAllRanges();
         }
         return { start: prev.start, end: index };
       });
@@ -799,7 +807,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
   };
 
   return (
-    <div className="editor-canvas" onMouseDown={handleCanvasMouseDown}>
+    <div className={`editor-canvas ${disableTextSelection ? 'dragging-selection' : ''}`} onMouseDown={handleCanvasMouseDown}>
       <div className="editor-inner">
         <h1 
           className="page-title-input" 
