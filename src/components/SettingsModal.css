@@ -1,0 +1,259 @@
+.settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-modal {
+  width: 600px;
+  height: 400px;
+  background-color: rgba(28, 28, 30, 0.85); /* --bg-elevated but translucent */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: scale-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-header {
+  height: 44px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.close-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-content {
+  flex: 1;
+  display: flex;
+  height: calc(100% - 44px);
+}
+
+.settings-sidebar-menu {
+  width: 150px;
+  border-right: 1px solid var(--border);
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.menu-item.active {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-main-panel {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.about-section {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.app-logo {
+  width: 56px;
+  height: 56px;
+  background-color: var(--accent);
+  color: #fff;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(110, 91, 250, 0.3);
+}
+
+.app-details h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.app-version {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.app-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.settings-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+.updates-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.update-status-container {
+  min-height: 48px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.update-status-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.success-text {
+  color: #30d158; /* iOS system green */
+}
+
+.error-text {
+  color: #ff453a; /* iOS system red */
+}
+
+.update-status-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.update-downloading-container {
+  width: 100%;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background-color: var(--border);
+  border-radius: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: var(--accent);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.1s ease-out;
+}
+
+.update-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.primary-btn, .accent-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.primary-btn {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.primary-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.accent-btn {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+.accent-btn:hover {
+  opacity: 0.9;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-up {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

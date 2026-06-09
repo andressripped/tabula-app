@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import './index.css';
 import Sidebar from './components/Sidebar';
 import EditorCanvas from './components/EditorCanvas';
+import SettingsModal from './components/SettingsModal';
 
 // Basic Types
 export interface Block {
@@ -33,7 +34,12 @@ const createEmptyPage = (): Page => ({
 function App() {
   const [pages, setPages] = useState<Page[]>([]);
   const [activePageId, setActivePageId] = useState<string | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'available' | 'downloaded'>('idle');
+  
+  // Settings & Updates State
+  const [showSettings, setShowSettings] = useState(false);
+  const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'latest' | 'downloading' | 'ready' | 'error'>('idle');
+  const [downloadPercent, setDownloadPercent] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Load from LocalStorage on mount
   useEffect(() => {
@@ -58,11 +64,27 @@ function App() {
     }
 
     if (window.electronAPI) {
+      window.electronAPI.onCheckingForUpdate(() => {
+        setUpdateState('checking');
+        setErrorMessage(null);
+      });
       window.electronAPI.onUpdateAvailable(() => {
-        setUpdateStatus('available');
+        setUpdateState('downloading');
+        setDownloadPercent(0);
+      });
+      window.electronAPI.onUpdateNotAvailable(() => {
+        setUpdateState('latest');
+      });
+      window.electronAPI.onDownloadProgress((percent) => {
+        setUpdateState('downloading');
+        setDownloadPercent(percent);
       });
       window.electronAPI.onUpdateDownloaded(() => {
-        setUpdateStatus('downloaded');
+        setUpdateState('ready');
+      });
+      window.electronAPI.onUpdateError((msg) => {
+        setUpdateState('error');
+        setErrorMessage(msg);
       });
     }
   }, []);
@@ -100,6 +122,12 @@ function App() {
     }
   };
 
+  const handleCheckForUpdates = () => {
+    if (window.electronAPI) {
+      window.electronAPI.checkForUpdates();
+    }
+  };
+
   return (
     <>
       <div className="titlebar">
@@ -113,8 +141,7 @@ function App() {
           onSelectPage={setActivePageId}
           onCreatePage={handleCreatePage}
           onDeletePage={handleDeletePage}
-          updateStatus={updateStatus}
-          onRestartApp={handleRestartApp}
+          onOpenSettings={() => setShowSettings(true)}
         />
         <div className="main-content">
           {activePage ? (
@@ -126,6 +153,16 @@ function App() {
           )}
         </div>
       </div>
+
+      <SettingsModal 
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        updateState={updateState}
+        downloadPercent={downloadPercent}
+        onCheckForUpdates={handleCheckForUpdates}
+        onRestartApp={handleRestartApp}
+        errorMessage={errorMessage}
+      />
     </>
   );
 }

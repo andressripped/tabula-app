@@ -131,59 +131,33 @@
   gap: 8px;
 }
 
-.update-status-banner {
+.settings-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  background-color: var(--bg-elevated);
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  animation: pulse-border 2s infinite ease-in-out;
+  gap: 10px;
+  transition: all 0.15s ease;
 }
 
-.update-spinner {
-  display: inline-block;
-  animation: spin 2s linear infinite;
+.settings-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
-.update-btn {
-  background-color: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  width: 100%;
-  text-align: center;
-  transition: opacity 0.15s ease;
+.settings-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.3s ease;
 }
 
-.update-btn:hover {
-  opacity: 0.9;
-}
-
-@keyframes pulse-border {
-  0% {
-    border-color: var(--border);
-  }
-  50% {
-    border-color: var(--accent);
-  }
-  100% {
-    border-color: var(--border);
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.settings-btn:hover .settings-icon {
+  transform: rotate(45deg);
 }

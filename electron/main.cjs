@@ -41,12 +41,32 @@ function createWindow() {
   });
 
   // Handle IPC calls for auto-updater
+  ipcMain.on('check-for-updates', () => {
+    autoUpdater.checkForUpdates();
+  });
+
+  autoUpdater.on('checking-for-update', () => {
+    mainWindow.webContents.send('checking-for-update');
+  });
+
   autoUpdater.on('update-available', () => {
     mainWindow.webContents.send('update-available');
   });
 
+  autoUpdater.on('update-not-available', () => {
+    mainWindow.webContents.send('update-not-available');
+  });
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    mainWindow.webContents.send('download-progress', progressObj.percent);
+  });
+
   autoUpdater.on('update-downloaded', () => {
     mainWindow.webContents.send('update-downloaded');
+  });
+
+  autoUpdater.on('error', (err) => {
+    mainWindow.webContents.send('update-error', err.message);
   });
 
   ipcMain.on('restart-app', () => {
