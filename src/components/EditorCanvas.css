@@ -1,0 +1,206 @@
+.editor-canvas {
+  height: 100%;
+  padding: 40px 60px 100px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.page-title-input {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 24px;
+  padding: 8px 0;
+  outline: none;
+  min-height: 56px;
+}
+
+.page-title-input:empty:before {
+  content: "Untitled";
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.blocks-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.block-wrapper {
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+}
+
+.block-content {
+  flex: 1;
+  padding: 4px 2px;
+  min-height: 28px;
+  outline: none;
+  line-height: 1.6;
+  position: relative;
+}
+
+.block-content:empty:focus:before {
+  content: attr(data-placeholder);
+  color: var(--text-tertiary);
+  pointer-events: none;
+  position: absolute;
+  left: 2px;
+  top: 4px;
+}
+
+/* Typography per block */
+.block-h1 .block-content {
+  font-size: 32px;
+  font-weight: 700;
+  margin-top: 24px;
+  letter-spacing: -0.02em;
+}
+
+.block-h2 .block-content {
+  font-size: 24px;
+  font-weight: 600;
+  margin-top: 18px;
+  letter-spacing: -0.01em;
+}
+
+.block-h3 .block-content {
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+.block-p .block-content {
+  font-size: 16px;
+}
+
+/* Lists */
+.block-list {
+  padding-left: 24px;
+}
+
+.list-bullet {
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  font-size: 18px;
+  user-select: none;
+}
+
+/* Todos */
+.block-todo {
+  padding-left: 30px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.todo-checkbox {
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--text-tertiary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.todo-checkbox:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.todo-checkbox.checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.todo-checkbox.checked::after {
+  content: "✓";
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Command Menu (Glassmorphism) */
+.command-menu {
+  position: fixed;
+  width: 300px;
+  background-color: rgba(28, 28, 30, 0.85); /* --bg-elevated but translucent */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.command-menu-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 8px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.command-item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  gap: 12px;
+}
+
+.command-item.selected, .command-item:hover {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+.command-item.selected .command-desc, .command-item:hover .command-desc {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.command-icon {
+  width: 36px;
+  height: 36px;
+  background-color: #fff;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.command-item.selected .command-icon, .command-item:hover .command-icon {
+  background-color: #fff;
+  color: var(--accent);
+}
+
+.command-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.command-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.command-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
