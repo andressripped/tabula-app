@@ -58,6 +58,8 @@ interface SettingsModalProps {
   aiProgress: AIModelProgress;
   onInitEmbedding: () => void;
   onInitLLM: () => void;
+  onCancelLLM: () => void;
+  appVersion: string;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -73,7 +75,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   aiStatus,
   aiProgress,
   onInitEmbedding,
-  onInitLLM
+  onInitLLM,
+  onCancelLLM,
+  appVersion
 }) => {
   const [activeTab, setActiveTab] = useState<'about' | 'appearance' | 'ai'>('appearance');
 
@@ -189,7 +193,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div className="app-details">
                     <h2>Tabula</h2>
-                    <p className="app-version">Version 0.0.8 (Production)</p>
+                    <p className="app-version">Version {appVersion} (Production)</p>
                     <p className="app-desc">A personal, local, ultra-fast note editor.</p>
                   </div>
                 </div>
@@ -288,12 +292,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="setting-group">
                   <h3>Asistente de IA Offline (Generador)</h3>
                   <p className="setting-desc" style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '12px' }}>
-                    Genera bloques de texto, ideas o estructuras como tablas directamente en tus notas sin enviar datos a internet. Requiere un modelo de lenguaje Qwen-0.5B (~950 MB).
+                    Genera bloques de texto, ideas o estructuras como tablas directamente en tus notas sin enviar datos a internet. Requiere el modelo TinyLlama-1.1B (~350 MB cuantizado a 4-bit).
                   </p>
                   <div className="ai-model-status-container" style={{ marginTop: '10px' }}>
                     {aiStatus.llm === 'idle' && (
                       <button className="primary-btn" onClick={onInitLLM}>
-                        Descargar Asistente de IA (950 MB)
+                        Descargar Asistente de IA (~350 MB)
                       </button>
                     )}
                     {aiStatus.llm === 'loading' && (
@@ -312,9 +316,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="progress-bar-bg" style={{ height: '6px', background: 'var(--bg-hover)', borderRadius: '3px', overflow: 'hidden' }}>
                           <div className="progress-bar-fill" style={{ width: `${aiProgress.llm.progress}%`, height: '100%', background: 'var(--accent)', borderRadius: '3px', transition: 'width 0.1s ease-out' }} />
                         </div>
+                        <button
+                          onClick={onCancelLLM}
+                          style={{
+                            marginTop: '4px',
+                            padding: '5px 12px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border)',
+                            background: 'var(--bg-elevated)',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            alignSelf: 'flex-start'
+                          }}
+                        >
+                          Cancelar descarga
+                        </button>
                       </div>
                     )}
-                    {aiStatus.llm === 'ready' && (
+                    {(aiStatus.llm === 'ready' || aiStatus.llm === 'generating') && (
                       <span className="success-text" style={{ color: '#30d158', fontWeight: 500, fontSize: '14px' }}>✓ Asistente de IA Listo (Escribe /ai en el editor)</span>
                     )}
                   </div>

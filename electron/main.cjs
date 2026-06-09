@@ -48,6 +48,11 @@ function createWindow() {
     autoUpdater.checkForUpdates();
   });
 
+  // Return app version to renderer
+  ipcMain.handle('get-app-version', () => {
+    return app.getVersion();
+  });
+
   autoUpdater.on('checking-for-update', () => {
     mainWindow.webContents.send('checking-for-update');
   });

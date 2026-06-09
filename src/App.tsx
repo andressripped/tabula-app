@@ -213,6 +213,14 @@ function App() {
   const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'latest' | 'downloading' | 'ready' | 'error'>('idle');
   const [downloadPercent, setDownloadPercent] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string>('...');
+
+  // Load app version from electron
+  useEffect(() => {
+    if (window.electronAPI?.getAppVersion) {
+      window.electronAPI.getAppVersion().then(v => setAppVersion(v)).catch(() => {});
+    }
+  }, []);
 
   // Load from LocalStorage and start AI worker on mount
   useEffect(() => {
@@ -394,6 +402,13 @@ function App() {
     });
   }, []);
 
+  const handleCancelLLM = useCallback(() => {
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: 'cancel-llm' });
+    }
+    setAiStatus(prev => ({ ...prev, llm: 'idle' }));
+  }, []);
+
   const activePage = pages.find(p => p.id === activePageId);
 
   const handleUpdatePage = useCallback((updaterOrPage: Page | ((page: Page) => Page)) => {
@@ -535,6 +550,8 @@ function App() {
         aiProgress={aiProgress}
         onInitEmbedding={handleInitEmbedding}
         onInitLLM={handleInitLLM}
+        onCancelLLM={handleCancelLLM}
+        appVersion={appVersion}
       />
 
       {showSearch && (

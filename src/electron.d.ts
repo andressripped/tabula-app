@@ -8,5 +8,6 @@ interface Window {
     onUpdateDownloaded: (callback: () => void) => void;
     onUpdateError: (callback: (errorMsg: string) => void) => void;
     restartApp: () => void;
+    getAppVersion: () => Promise<string>;
   };
 }
