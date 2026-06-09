@@ -25,7 +25,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    icon: path.join(__dirname, '../public/logo.png'),
+    icon: path.join(__dirname, '../dist/logo.png'),
     show: false, // Wait until ready-to-show to avoid flickering
     backgroundColor: '#0d0d0d'
   });

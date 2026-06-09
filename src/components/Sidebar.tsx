@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Page } from '../App';
+import logoImg from '../assets/logo.png';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -83,7 +84,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="sidebar-header">
         <div className="user-profile">
           <div className="avatar" style={{ background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/logo.png" alt="Tabula Logo" style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
+            <img src={logoImg} alt="Tabula Logo" style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
           </div>
           <span className="workspace-name">My Workspace</span>
         </div>

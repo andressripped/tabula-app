@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logoImg from '../assets/logo.png';
 import './SettingsModal.css';
 
 export type ThemeMode = 'dark' | 'light';
@@ -153,11 +154,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <>
                 <div className="about-section">
                   <div className="app-logo" style={{ background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <img src="/logo.png" alt="Tabula Logo" style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
+                    <img src={logoImg} alt="Tabula Logo" style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
                   </div>
                   <div className="app-details">
                     <h2>Tabula</h2>
-                    <p className="app-version">Version 0.0.7 (Production)</p>
+                    <p className="app-version">Version 0.0.8 (Production)</p>
                     <p className="app-desc">A personal, local, ultra-fast note editor.</p>
                   </div>
                 </div>
