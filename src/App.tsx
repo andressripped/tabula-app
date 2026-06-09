@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import './index.css';
 import Sidebar from './components/Sidebar';
 import EditorCanvas from './components/EditorCanvas';
-import SettingsModal, { type AppSettings } from './components/SettingsModal';
+import SettingsModal, { type AppSettings, type AIModelStatus, type AIModelProgress } from './components/SettingsModal';
 import SearchPalette from './components/SearchPalette';
 import DatabaseView from './components/DatabaseView';
+import { getPageEmbeddings, savePageEmbeddings, type PageEmbeddings } from './services/vectorDb';
 
 // Basic Types
 export interface Block {
   id: string;
-  type: 'p' | 'h1' | 'h2' | 'h3' | 'list' | 'todo' | 'quote' | 'callout' | 'code' | 'divider' | 'image';
+  type: 'p' | 'h1' | 'h2' | 'h3' | 'list' | 'todo' | 'quote' | 'callout' | 'code' | 'divider' | 'image' | 'ai';
   content: string;
   checked?: boolean;
   language?: string;
@@ -171,6 +172,39 @@ function App() {
     return DEFAULT_SETTINGS;
   });
   const [zenMode, setZenMode] = useState(false);
+
+  // Local AI State
+  const [aiStatus, setAiStatus] = useState<AIModelStatus>({
+    embedding: 'idle',
+    llm: 'idle'
+  });
+  const [aiProgress, setAiProgress] = useState<AIModelProgress>({
+    embedding: 0,
+    llm: 0
+  });
+  const [pageEmbeddings, setPageEmbeddings] = useState<Record<string, PageEmbeddings>>({});
+
+  const workerRef = useRef<Worker | null>(null);
+  const generateResolveRef = useRef<((value: string) => void) | null>(null);
+  const generateRejectRef = useRef<((reason: any) => void) | null>(null);
+  const queryResolveRef = useRef<((value: number[]) => void) | null>(null);
+
+  // Load cached embeddings on startup
+  const loadCachedEmbeddings = async () => {
+    try {
+      const savedPages = getInitialPages();
+      const loadedCache: Record<string, PageEmbeddings> = {};
+      for (const page of savedPages) {
+        const emb = await getPageEmbeddings(page.id);
+        if (emb) {
+          loadedCache[page.id] = emb;
+        }
+      }
+      setPageEmbeddings(loadedCache);
+    } catch (err) {
+      console.error('Failed to load page embeddings cache:', err);
+    }
+  };
   
   // UI State
   const [showSettings, setShowSettings] = useState(false);
@@ -180,7 +214,7 @@ function App() {
   const [downloadPercent, setDownloadPercent] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Load from LocalStorage on mount
+  // Load from LocalStorage and start AI worker on mount
   useEffect(() => {
     if (window.electronAPI) {
       window.electronAPI.onCheckingForUpdate(() => { setUpdateState('checking'); setErrorMessage(null); });
@@ -190,6 +224,80 @@ function App() {
       window.electronAPI.onUpdateDownloaded(() => { setUpdateState('ready'); });
       window.electronAPI.onUpdateError((msg) => { setUpdateState('error'); setErrorMessage(msg); });
     }
+
+    // Initialize Web Worker
+    workerRef.current = new Worker(
+      new URL('./workers/ai.worker.ts', import.meta.url),
+      { type: 'module' }
+    );
+
+    workerRef.current.onmessage = (event) => {
+      const { type, model, status, progress, payload } = event.data;
+
+      if (type === 'status') {
+        setAiStatus(prev => ({ ...prev, [model]: status }));
+      } else if (type === 'progress') {
+        setAiProgress(prev => ({ ...prev, [model]: progress }));
+      } else if (type === 'ready') {
+        setAiStatus(prev => ({ ...prev, [model]: 'ready' }));
+      } else if (type === 'embed-success') {
+        const { pageId, blockId, embedding } = payload;
+        
+        if (pageId === 'query') {
+          if (queryResolveRef.current) {
+            queryResolveRef.current(embedding);
+            queryResolveRef.current = null;
+          }
+          return;
+        }
+
+        setPageEmbeddings(prev => {
+          const existing = prev[pageId] || {
+            pageId,
+            titleEmbedding: null,
+            blocksEmbeddings: {},
+            updatedAt: Date.now()
+          };
+
+          if (blockId) {
+            existing.blocksEmbeddings[blockId] = embedding;
+          } else {
+            existing.titleEmbedding = embedding;
+          }
+          existing.updatedAt = Date.now();
+
+          // Persist to IndexedDB
+          savePageEmbeddings(existing);
+
+          return { ...prev, [pageId]: { ...existing } };
+        });
+      } else if (type === 'generate-success') {
+        const { text } = payload;
+        // Reset state from generating to ready
+        setAiStatus(prev => ({ ...prev, llm: 'ready' }));
+        if (generateResolveRef.current) {
+          generateResolveRef.current(text);
+          generateResolveRef.current = null;
+        }
+      } else if (type === 'error') {
+        console.error('AI Worker error:', payload.message);
+        setAiStatus(prev => ({
+          ...prev,
+          llm: prev.llm === 'generating' ? 'ready' : prev.llm
+        }));
+        if (generateRejectRef.current) {
+          generateRejectRef.current(new Error(payload.message));
+          generateRejectRef.current = null;
+        }
+      }
+    };
+
+    // Load IndexedDB cache
+    loadCachedEmbeddings();
+
+    return () => {
+      workerRef.current?.terminate();
+    };
   }, []);
 
   // Autosave
@@ -213,6 +321,76 @@ function App() {
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  // Background indexing of page and block embeddings
+  useEffect(() => {
+    if (aiStatus.embedding !== 'ready' || !workerRef.current) return;
+
+    const timer = setTimeout(() => {
+      for (const page of pages) {
+        const cached = pageEmbeddings[page.id];
+        
+        // If page is not in cache, or was updated since last cache update
+        if (!cached || cached.updatedAt < page.updatedAt) {
+          // Compute title embedding
+          workerRef.current?.postMessage({
+            type: 'embed',
+            payload: { text: page.title || 'Untitled', pageId: page.id }
+          });
+          
+          // Compute block embeddings
+          for (const block of page.blocks) {
+            if (block.content && block.type !== 'divider' && block.type !== 'image') {
+              workerRef.current?.postMessage({
+                type: 'embed',
+                payload: { text: block.content, pageId: page.id, blockId: block.id }
+              });
+            }
+          }
+        }
+      }
+    }, 1500); // Debounced 1.5 seconds
+
+    return () => clearTimeout(timer);
+  }, [pages, aiStatus.embedding, pageEmbeddings]);
+
+  const handleInitEmbedding = useCallback(() => {
+    if (workerRef.current && aiStatus.embedding === 'idle') {
+      setAiStatus(prev => ({ ...prev, embedding: 'loading' }));
+      workerRef.current.postMessage({ type: 'init-embedding' });
+    }
+  }, [aiStatus.embedding]);
+
+  const handleInitLLM = useCallback(() => {
+    if (workerRef.current && aiStatus.llm === 'idle') {
+      setAiStatus(prev => ({ ...prev, llm: 'loading' }));
+      workerRef.current.postMessage({ type: 'init-llm' });
+    }
+  }, [aiStatus.llm]);
+
+  const handleEmbedQuery = useCallback((query: string): Promise<number[]> => {
+    return new Promise((resolve, reject) => {
+      if (!workerRef.current) return reject(new Error('AI worker not available'));
+      queryResolveRef.current = resolve;
+      workerRef.current.postMessage({
+        type: 'embed',
+        payload: { text: query, pageId: 'query' }
+      });
+    });
+  }, []);
+
+  const handleGenerateText = useCallback((prompt: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!workerRef.current) return reject(new Error('AI worker not available'));
+      generateResolveRef.current = resolve;
+      generateRejectRef.current = reject;
+      setAiStatus(prev => ({ ...prev, llm: 'generating' }));
+      workerRef.current.postMessage({
+        type: 'generate',
+        payload: { prompt }
+      });
+    });
   }, []);
 
   const activePage = pages.find(p => p.id === activePageId);
@@ -326,7 +504,14 @@ function App() {
           {showDatabase ? (
             <DatabaseView pages={pages} onSelectPage={(id) => { setActivePageId(id); setShowDatabase(false); }} />
           ) : activePage ? (
-            <EditorCanvas key={activePage.id} page={activePage} onUpdate={handleUpdatePage} />
+            <EditorCanvas
+              key={activePage.id}
+              page={activePage}
+              onUpdate={handleUpdatePage}
+              aiStatus={aiStatus}
+              onGenerateText={handleGenerateText}
+              onInitLLM={handleInitLLM}
+            />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)' }}>
               No page selected. Create one!
@@ -345,6 +530,10 @@ function App() {
         errorMessage={errorMessage}
         settings={settings}
         onSettingsChange={handleSettingsChange}
+        aiStatus={aiStatus}
+        aiProgress={aiProgress}
+        onInitEmbedding={handleInitEmbedding}
+        onInitLLM={handleInitLLM}
       />
 
       {showSearch && (
@@ -353,6 +542,10 @@ function App() {
           isOpen={showSearch}
           onClose={() => setShowSearch(false)}
           onSelectPage={(id) => { setActivePageId(id); setShowSearch(false); }}
+          aiStatus={aiStatus}
+          pageEmbeddings={pageEmbeddings}
+          onEmbedQuery={handleEmbedQuery}
+          onInitEmbedding={handleInitEmbedding}
         />
       )}
     </>

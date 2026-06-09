@@ -5,10 +5,14 @@ import './EditorCanvas.css';
 interface EditorCanvasProps {
   page: Page;
   onUpdate: (updaterOrPage: Page | ((page: Page) => Page)) => void;
+  aiStatus: { embedding: 'idle' | 'loading' | 'ready'; llm: 'idle' | 'loading' | 'ready' | 'generating' };
+  onGenerateText: (prompt: string) => Promise<string>;
+  onInitLLM: () => void;
 }
 
 const COMMANDS = [
   { label: 'Text', command: 'p', icon: 'Aa', desc: 'Just start writing with plain text.' },
+  { label: 'Preguntar a la IA (Local)', command: 'ai', icon: '🤖', desc: 'Generar tablas o texto de forma local y privada.' },
   { label: 'Heading 1', command: 'h1', icon: 'H1', desc: 'Big section heading.' },
   { label: 'Heading 2', command: 'h2', icon: 'H2', desc: 'Medium section heading.' },
   { label: 'Heading 3', command: 'h3', icon: 'H3', desc: 'Small section heading.' },
@@ -343,9 +347,209 @@ const ImageBlock: React.FC<ImageBlockProps> = ({ block, onImageUpload, onRemove 
 };
 
 // ─────────────────────────────────────────────────────────────
+// AIBlock — inline local AI generation interface
+// ─────────────────────────────────────────────────────────────
+interface AIBlockProps {
+  aiStatus: { embedding: 'idle' | 'loading' | 'ready'; llm: 'idle' | 'loading' | 'ready' | 'generating' };
+  onGenerate: (prompt: string) => void;
+  onCancel: () => void;
+  onInitLLM: () => void;
+}
+
+const AIBlock: React.FC<AIBlockProps> = ({ aiStatus, onGenerate, onCancel, onInitLLM }) => {
+  const [prompt, setPrompt] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (prompt.trim() && aiStatus.llm === 'ready') {
+      onGenerate(prompt);
+    }
+  };
+
+  return (
+    <div className="ai-block-container" contentEditable={false} style={{
+      background: 'rgba(110, 91, 250, 0.05)',
+      border: '1px dashed var(--accent)',
+      borderRadius: '8px',
+      padding: '16px',
+      margin: '8px 0',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '13px', color: 'var(--accent)' }}>
+        <span style={{ fontSize: '16px' }}>🤖</span>
+        <span>Asistente de IA Local (Offline)</span>
+      </div>
+
+      {aiStatus.llm === 'idle' || aiStatus.llm === 'loading' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
+            El Asistente de IA requiere descargar un modelo de lenguaje local (~950 MB). Puedes descargarlo aquí o desde Ajustes.
+          </p>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+            {aiStatus.llm === 'loading' ? (
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Cargando modelo...</span>
+            ) : (
+              <button className="primary-btn" onClick={onInitLLM} style={{ fontSize: '12px', padding: '6px 14px', border: 'none', borderRadius: '6px', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>
+                Descargar Modelo
+              </button>
+            )}
+            <button className="close-btn" onClick={onCancel} style={{ fontSize: '12px', padding: '6px 14px', border: '1px solid var(--border)', borderRadius: '6px', background: 'transparent', cursor: 'pointer' }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <textarea
+            className="ai-prompt-input"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Escribe lo que necesitas (Ej. 'Crea una tabla con las tareas del proyecto, responsable y prioridad')..."
+            style={{
+              width: '100%',
+              minHeight: '60px',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              color: 'var(--text-primary)',
+              padding: '10px',
+              fontSize: '13px',
+              resize: 'vertical',
+              outline: 'none',
+              fontFamily: 'var(--font-family)'
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
+            disabled={aiStatus.llm === 'generating'}
+          />
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              className="close-btn"
+              onClick={onCancel}
+              style={{ fontSize: '12px', padding: '6px 14px', border: '1px solid var(--border)', borderRadius: '6px', background: 'transparent', cursor: 'pointer' }}
+              disabled={aiStatus.llm === 'generating'}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="primary-btn"
+              style={{ fontSize: '12px', padding: '6px 14px', border: 'none', borderRadius: '6px', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}
+              disabled={!prompt.trim() || aiStatus.llm === 'generating'}
+            >
+              {aiStatus.llm === 'generating' ? 'Generando...' : 'Generar'}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+};
+
+function parseMarkdownToBlocks(md: string): Omit<Block, 'id'>[] {
+  const lines = md.split('\n');
+  const blocks: Omit<Block, 'id'>[] = [];
+  
+  let inCodeBlock = false;
+  let codeContent = '';
+  let codeLang = 'plain';
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Check code blocks
+    if (line.trim().startsWith('```')) {
+      if (inCodeBlock) {
+        blocks.push({
+          type: 'code',
+          content: codeContent.trim(),
+          language: codeLang
+        });
+        inCodeBlock = false;
+        codeContent = '';
+      } else {
+        inCodeBlock = true;
+        codeLang = line.trim().slice(3).trim() || 'plain';
+      }
+      continue;
+    }
+    
+    if (inCodeBlock) {
+      codeContent += line + '\n';
+      continue;
+    }
+    
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    
+    // Headings
+    if (trimmed.startsWith('# ')) {
+      blocks.push({ type: 'h1', content: trimmed.slice(2) });
+    } else if (trimmed.startsWith('## ')) {
+      blocks.push({ type: 'h2', content: trimmed.slice(3) });
+    } else if (trimmed.startsWith('### ')) {
+      blocks.push({ type: 'h3', content: trimmed.slice(4) });
+    }
+    // Lists & Todo
+    else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      const content = trimmed.slice(2);
+      if (content.startsWith('[ ]') || content.startsWith('[x]')) {
+        blocks.push({
+          type: 'todo',
+          content: content.slice(3).trim(),
+          checked: content.startsWith('[x]')
+        });
+      } else {
+        blocks.push({ type: 'list', content });
+      }
+    }
+    // Quote
+    else if (trimmed.startsWith('> ')) {
+      blocks.push({ type: 'quote', content: trimmed.slice(2) });
+    }
+    // Markdown table block
+    else if (trimmed.startsWith('|')) {
+      let tableContent = trimmed + '\n';
+      while (i + 1 < lines.length && lines[i + 1].trim().startsWith('|')) {
+        tableContent += lines[i + 1].trim() + '\n';
+        i++;
+      }
+      blocks.push({
+        type: 'code',
+        content: tableContent.trim(),
+        language: 'markdown'
+      });
+    }
+    // Paragraph
+    else {
+      blocks.push({ type: 'p', content: trimmed });
+    }
+  }
+  
+  if (blocks.length === 0) {
+    blocks.push({ type: 'p', content: md });
+  }
+  
+  return blocks;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Main EditorCanvas
 // ─────────────────────────────────────────────────────────────
-const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
+const EditorCanvas: React.FC<EditorCanvasProps> = ({
+  page,
+  onUpdate,
+  aiStatus,
+  onGenerateText,
+  onInitLLM
+}) => {
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [commandMenuOpen, setCommandMenuOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
@@ -365,6 +569,35 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
     const newTitle = e.currentTarget.textContent || '';
     onUpdateRef.current(currentPage => ({ ...currentPage, title: newTitle }));
   }, []);
+
+  const handleAICancel = useCallback((index: number) => {
+    onUpdateRef.current(currentPage => {
+      const newBlocks = [...currentPage.blocks];
+      newBlocks[index] = { ...newBlocks[index], type: 'p', content: '' };
+      return { ...currentPage, blocks: newBlocks };
+    });
+    setFocusedIndex(index);
+  }, []);
+
+  const handleAIGenerate = useCallback(async (index: number, prompt: string) => {
+    try {
+      const generatedText = await onGenerateText(prompt);
+      const parsedBlocks = parseMarkdownToBlocks(generatedText).map(b => ({
+        ...b,
+        id: crypto.randomUUID()
+      }));
+
+      onUpdateRef.current(currentPage => {
+        const newBlocks = [...currentPage.blocks];
+        newBlocks.splice(index, 1, ...parsedBlocks);
+        return { ...currentPage, blocks: newBlocks };
+      });
+
+      setFocusedIndex(index);
+    } catch (err) {
+      console.error('Failed to generate AI content:', err);
+    }
+  }, [onGenerateText]);
 
   const updateBlockContent = useCallback((index: number, content: string) => {
     onUpdateRef.current(currentPage => {
@@ -612,6 +845,18 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
               block={block}
               onImageUpload={(data) => updateBlockImage(index, data)}
               onRemove={() => removeBlockImage(index)}
+            />
+          </div>
+        );
+
+      case 'ai':
+        return (
+          <div {...blockProps}>
+            <AIBlock
+              aiStatus={aiStatus}
+              onGenerate={(prompt) => handleAIGenerate(index, prompt)}
+              onCancel={() => handleAICancel(index)}
+              onInitLLM={onInitLLM}
             />
           </div>
         );

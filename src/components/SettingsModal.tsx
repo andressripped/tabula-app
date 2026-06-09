@@ -27,6 +27,16 @@ const FONT_OPTIONS: { key: FontFamily; label: string; preview: string }[] = [
   { key: 'mono', label: 'Monospace', preview: 'SF Mono, Consolas' },
 ];
 
+export interface AIModelStatus {
+  embedding: 'idle' | 'loading' | 'ready';
+  llm: 'idle' | 'loading' | 'ready' | 'generating';
+}
+
+export interface AIModelProgress {
+  embedding: number;
+  llm: number;
+}
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -37,6 +47,10 @@ interface SettingsModalProps {
   errorMessage: string | null;
   settings: AppSettings;
   onSettingsChange: (settings: AppSettings) => void;
+  aiStatus: AIModelStatus;
+  aiProgress: AIModelProgress;
+  onInitEmbedding: () => void;
+  onInitLLM: () => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -48,9 +62,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onRestartApp,
   errorMessage,
   settings,
-  onSettingsChange
+  onSettingsChange,
+  aiStatus,
+  aiProgress,
+  onInitEmbedding,
+  onInitLLM
 }) => {
-  const [activeTab, setActiveTab] = useState<'about' | 'appearance'>('appearance');
+  const [activeTab, setActiveTab] = useState<'about' | 'appearance' | 'ai'>('appearance');
 
   if (!isOpen) return null;
 
@@ -69,6 +87,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               onClick={() => setActiveTab('appearance')}
             >
               Appearance
+            </div>
+            <div 
+              className={`menu-item ${activeTab === 'ai' ? 'active' : ''}`} 
+              onClick={() => setActiveTab('ai')}
+            >
+              Local AI
             </div>
             <div 
               className={`menu-item ${activeTab === 'about' ? 'active' : ''}`} 
@@ -213,6 +237,68 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
               </>
+            )}
+
+            {activeTab === 'ai' && (
+              <div className="ai-section">
+                <div className="setting-group">
+                  <h3>Búsqueda Semántica (IA Local)</h3>
+                  <p className="setting-desc" style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '12px' }}>
+                    Busca notas usando conceptos y significados en lugar de coincidencia exacta de palabras. Utiliza un modelo liviano de embeddings (23 MB).
+                  </p>
+                  <div className="ai-model-status-container" style={{ marginTop: '10px' }}>
+                    {aiStatus.embedding === 'idle' && (
+                      <button className="primary-btn" onClick={onInitEmbedding}>
+                        Activar Búsqueda Semántica
+                      </button>
+                    )}
+                    {aiStatus.embedding === 'loading' && (
+                      <div className="ai-model-loading" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div className="spinner" />
+                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Cargando modelo de embeddings ({Math.round(aiProgress.embedding)}%)...</span>
+                        </div>
+                        <div className="progress-bar-bg" style={{ height: '6px', background: 'var(--bg-hover)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div className="progress-bar-fill" style={{ width: `${aiProgress.embedding}%`, height: '100%', background: 'var(--accent)', borderRadius: '3px', transition: 'width 0.1s ease-out' }} />
+                        </div>
+                      </div>
+                    )}
+                    {aiStatus.embedding === 'ready' && (
+                      <span className="success-text" style={{ color: '#30d158', fontWeight: 500, fontSize: '14px' }}>✓ Búsqueda Semántica Activa (Offline)</span>
+                    )}
+                  </div>
+                </div>
+
+                <hr className="settings-divider" style={{ border: 'none', height: '1px', background: 'var(--border)', margin: '20px 0' }} />
+
+                <div className="setting-group">
+                  <h3>Asistente de IA Offline (Generador)</h3>
+                  <p className="setting-desc" style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '12px' }}>
+                    Genera bloques de texto, ideas o estructuras como tablas directamente en tus notas sin enviar datos a internet. Requiere un modelo de lenguaje Qwen-0.5B (~950 MB).
+                  </p>
+                  <div className="ai-model-status-container" style={{ marginTop: '10px' }}>
+                    {aiStatus.llm === 'idle' && (
+                      <button className="primary-btn" onClick={onInitLLM}>
+                        Descargar Asistente de IA (950 MB)
+                      </button>
+                    )}
+                    {aiStatus.llm === 'loading' && (
+                      <div className="ai-model-loading" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div className="spinner" />
+                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Descargando modelo de lenguaje ({Math.round(aiProgress.llm)}%)...</span>
+                        </div>
+                        <div className="progress-bar-bg" style={{ height: '6px', background: 'var(--bg-hover)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div className="progress-bar-fill" style={{ width: `${aiProgress.llm}%`, height: '100%', background: 'var(--accent)', borderRadius: '3px', transition: 'width 0.1s ease-out' }} />
+                        </div>
+                      </div>
+                    )}
+                    {aiStatus.llm === 'ready' && (
+                      <span className="success-text" style={{ color: '#30d158', fontWeight: 500, fontSize: '14px' }}>✓ Asistente de IA Listo (Escribe /ai en el editor)</span>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
