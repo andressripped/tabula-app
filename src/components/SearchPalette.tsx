@@ -15,12 +15,8 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ pages, isOpen, onClose, o
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setQuery('');
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [isOpen]);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
 
   const filteredPages = pages.filter(page => {
     if (!query) return true;
@@ -47,11 +43,6 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ pages, isOpen, onClose, o
       onClose();
     }
   }, [filteredPages, selectedIndex, onSelectPage, onClose]);
-
-  // Reset selectedIndex when query changes
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
 
   if (!isOpen) return null;
 
@@ -89,7 +80,10 @@ const SearchPalette: React.FC<SearchPaletteProps> = ({ pages, isOpen, onClose, o
             className="search-input"
             placeholder="Search pages..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => {
+              setQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
             onKeyDown={handleKeyDown}
           />
           <span className="search-shortcut">esc</span>

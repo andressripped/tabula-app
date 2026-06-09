@@ -35,13 +35,13 @@ const createEmptyPage = (): Page => ({
 });
 
 // ─── Theme application ──────────────────────────────────────
-const ACCENT_MAP: Record<string, { accent: string; hover: string }> = {
-  indigo:   { accent: '#6e5bfa', hover: '#8170fb' },
-  blue:     { accent: '#007aff', hover: '#339aff' },
-  pink:     { accent: '#ff2d55', hover: '#ff5070' },
-  green:    { accent: '#30d158', hover: '#4de06e' },
-  orange:   { accent: '#ff9f0a', hover: '#ffb340' },
-  graphite: { accent: '#8e8e93', hover: '#a1a1a6' },
+const ACCENT_MAP: Record<string, { accent: string; hover: string; light: string }> = {
+  indigo:   { accent: '#6e5bfa', hover: '#8170fb', light: 'rgba(110, 91, 250, 0.15)' },
+  blue:     { accent: '#007aff', hover: '#339aff', light: 'rgba(0, 122, 255, 0.15)' },
+  pink:     { accent: '#ff2d55', hover: '#ff5070', light: 'rgba(255, 45, 85, 0.15)' },
+  green:    { accent: '#30d158', hover: '#4de06e', light: 'rgba(48, 209, 88, 0.15)' },
+  orange:   { accent: '#ff9f0a', hover: '#ffb340', light: 'rgba(255, 159, 10, 0.15)' },
+  graphite: { accent: '#8e8e93', hover: '#a1a1a6', light: 'rgba(142, 142, 147, 0.15)' },
 };
 
 const FONT_MAP: Record<string, string> = {
@@ -78,6 +78,7 @@ function applySettings(settings: AppSettings) {
   const accentConfig = ACCENT_MAP[settings.accent] || ACCENT_MAP.indigo;
   root.style.setProperty('--accent', accentConfig.accent);
   root.style.setProperty('--accent-hover', accentConfig.hover);
+  root.style.setProperty('--accent-light', accentConfig.light);
   
   // Font
   const fontStack = FONT_MAP[settings.font] || FONT_MAP.sans;
@@ -119,12 +120,56 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 
 const DEFAULT_SETTINGS: AppSettings = { theme: 'dark', accent: 'indigo', font: 'sans' };
 
+const getInitialPages = (): Page[] => {
+  const saved = localStorage.getItem('tabula_pages');
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (parsed.length > 0) return parsed;
+  }
+  return [{
+    id: 'welcome-page',
+    title: 'Welcome to Tabula',
+    icon: '📄',
+    blocks: [
+      { id: 'welcome-h1', type: 'h1', content: 'Welcome to Tabula' },
+      { id: 'welcome-p', type: 'p', content: 'A fast, local, private note-taking app.' },
+      { id: 'welcome-todo', type: 'todo', content: 'Try pressing "/" to open the command menu', checked: false }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  }];
+};
+
+const getInitialActivePageId = (): string | null => {
+  const saved = localStorage.getItem('tabula_pages');
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (parsed.length > 0) return parsed[0].id;
+  }
+  return 'welcome-page';
+};
+
 function App() {
-  const [pages, setPages] = useState<Page[]>([]);
-  const [activePageId, setActivePageId] = useState<string | null>(null);
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [trash, setTrash] = useState<Page[]>([]);
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [pages, setPages] = useState<Page[]>(() => getInitialPages());
+  const [activePageId, setActivePageId] = useState<string | null>(() => getInitialActivePageId());
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('tabula_favorites');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [trash, setTrash] = useState<Page[]>(() => {
+    const saved = localStorage.getItem('tabula_trash');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const saved = localStorage.getItem('tabula_settings');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      applySettings(parsed);
+      return parsed;
+    }
+    applySettings(DEFAULT_SETTINGS);
+    return DEFAULT_SETTINGS;
+  });
   const [zenMode, setZenMode] = useState(false);
   
   // UI State
@@ -137,36 +182,6 @@ function App() {
 
   // Load from LocalStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('tabula_pages');
-    if (saved) {
-      const parsedPages = JSON.parse(saved);
-      setPages(parsedPages);
-      if (parsedPages.length > 0) setActivePageId(parsedPages[0].id);
-    } else {
-      const initialPage = createEmptyPage();
-      initialPage.title = 'Welcome to Tabula';
-      initialPage.blocks = [
-        { id: crypto.randomUUID(), type: 'h1', content: 'Welcome to Tabula' },
-        { id: crypto.randomUUID(), type: 'p', content: 'A fast, local, private note-taking app.' },
-        { id: crypto.randomUUID(), type: 'todo', content: 'Try pressing "/" to open the command menu', checked: false }
-      ];
-      setPages([initialPage]);
-      setActivePageId(initialPage.id);
-    }
-
-    const savedFavs = localStorage.getItem('tabula_favorites');
-    if (savedFavs) setFavoriteIds(JSON.parse(savedFavs));
-
-    const savedTrash = localStorage.getItem('tabula_trash');
-    if (savedTrash) setTrash(JSON.parse(savedTrash));
-
-    const savedSettings = localStorage.getItem('tabula_settings');
-    if (savedSettings) {
-      const parsed = JSON.parse(savedSettings);
-      setSettings(parsed);
-      applySettings(parsed);
-    }
-
     if (window.electronAPI) {
       window.electronAPI.onCheckingForUpdate(() => { setUpdateState('checking'); setErrorMessage(null); });
       window.electronAPI.onUpdateAvailable(() => { setUpdateState('downloading'); setDownloadPercent(0); });
@@ -178,9 +193,7 @@ function App() {
   }, []);
 
   // Autosave
-  useEffect(() => {
-    if (pages.length > 0) localStorage.setItem('tabula_pages', JSON.stringify(pages));
-  }, [pages]);
+  useEffect(() => { localStorage.setItem('tabula_pages', JSON.stringify(pages)); }, [pages]);
   useEffect(() => { localStorage.setItem('tabula_favorites', JSON.stringify(favoriteIds)); }, [favoriteIds]);
   useEffect(() => { localStorage.setItem('tabula_trash', JSON.stringify(trash)); }, [trash]);
   useEffect(() => { localStorage.setItem('tabula_settings', JSON.stringify(settings)); }, [settings]);
@@ -204,9 +217,20 @@ function App() {
 
   const activePage = pages.find(p => p.id === activePageId);
 
-  const handleUpdatePage = useCallback((updatedPage: Page) => {
-    setPages(prevPages => prevPages.map(p => p.id === updatedPage.id ? { ...updatedPage, updatedAt: Date.now() } : p));
-  }, []);
+  const handleUpdatePage = useCallback((updaterOrPage: Page | ((page: Page) => Page)) => {
+    setPages(prevPages => {
+      return prevPages.map(p => {
+        if (typeof updaterOrPage === 'function') {
+          if (p.id === activePageId) {
+            return { ...updaterOrPage(p), updatedAt: Date.now() };
+          }
+          return p;
+        } else {
+          return p.id === updaterOrPage.id ? { ...updaterOrPage, updatedAt: Date.now() } : p;
+        }
+      });
+    });
+  }, [activePageId]);
 
   const handleCreatePage = useCallback(() => {
     const newPage = createEmptyPage();
@@ -217,7 +241,14 @@ function App() {
   const handleDeletePage = useCallback((id: string) => {
     setPages(prevPages => {
       const pageToDelete = prevPages.find(p => p.id === id);
-      if (pageToDelete) setTrash(prev => [pageToDelete, ...prev]);
+      if (pageToDelete) {
+        setTimeout(() => {
+          setTrash(prev => {
+            if (prev.some(p => p.id === id)) return prev;
+            return [pageToDelete, ...prev];
+          });
+        }, 0);
+      }
       const newPages = prevPages.filter(p => p.id !== id);
       setActivePageId(prevActiveId => {
         if (prevActiveId === id) {
@@ -316,12 +347,14 @@ function App() {
         onSettingsChange={handleSettingsChange}
       />
 
-      <SearchPalette
-        pages={pages}
-        isOpen={showSearch}
-        onClose={() => setShowSearch(false)}
-        onSelectPage={(id) => { setActivePageId(id); setShowSearch(false); }}
-      />
+      {showSearch && (
+        <SearchPalette
+          pages={pages}
+          isOpen={showSearch}
+          onClose={() => setShowSearch(false)}
+          onSelectPage={(id) => { setActivePageId(id); setShowSearch(false); }}
+        />
+      )}
     </>
   );
 }

@@ -25,7 +25,9 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    icon: path.join(__dirname, '../dist/logo.png'),
+    icon: process.platform === 'win32'
+      ? path.join(__dirname, '../dist/icon.ico')
+      : path.join(__dirname, '../dist/logo.png'),
     show: false, // Wait until ready-to-show to avoid flickering
     backgroundColor: '#0d0d0d'
   });

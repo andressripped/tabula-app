@@ -39,11 +39,12 @@ const DatabaseView: React.FC<DatabaseViewProps> = ({ pages, onSelectPage }) => {
 
   const updateRow = useCallback((pageId: string, updates: Partial<DatabaseRow>) => {
     setRows(prev => {
-      const newRows = { ...prev, [pageId]: { ...getRow(pageId), ...updates, pageId } };
+      const existingRow = prev[pageId] || { pageId, status: 'Backlog', tags: [], date: new Date().toISOString().split('T')[0] };
+      const newRows = { ...prev, [pageId]: { ...existingRow, ...updates, pageId } };
       localStorage.setItem('tabula_database', JSON.stringify(newRows));
       return newRows;
     });
-  }, [rows]);
+  }, []);
 
   const getPagesByStatus = (status: Status) => {
     return pages.filter(p => getRow(p.id).status === status);
