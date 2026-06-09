@@ -33,7 +33,8 @@
     "publish": {
       "provider": "github",
       "owner": "andressripped",
-      "repo": "tabula-app"
+      "repo": "tabula-app",
+      "releaseType": "release"
     }
   },
   "dependencies": {
