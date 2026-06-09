@@ -551,7 +551,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
   }, [commandMenuOpen, commandIndex, filteredCommands, updateBlockType]);
 
 
-  const totalCharacters = page.blocks.reduce((acc, block) => acc + block.content.length, 0);
+  const totalCharacters = page.blocks.reduce((acc, block) => acc + [...block.content].length, 0);
 
   // ─── Render block by type ──────────────────────────────────
   const renderBlock = (block: Block, index: number) => {

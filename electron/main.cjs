@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, MenuItem } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
@@ -71,6 +71,44 @@ function createWindow() {
 
   ipcMain.on('restart-app', () => {
     autoUpdater.quitAndInstall();
+  });
+
+  // Handle right-click context menu for spellcheck and text actions
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    const menu = new Menu();
+
+    // Add spelling suggestions
+    for (const suggestion of params.dictionarySuggestions) {
+      menu.append(new MenuItem({
+        label: suggestion,
+        click: () => mainWindow.webContents.replaceMisspelling(suggestion)
+      }));
+    }
+
+    // Allow users to add misspelled word to dictionary
+    if (params.misspelledWord) {
+      menu.append(new MenuItem({
+        label: 'Agregar al diccionario',
+        click: () => mainWindow.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord)
+      }));
+      if (params.dictionarySuggestions.length > 0) {
+        menu.append(new MenuItem({ type: 'separator' }));
+      }
+    }
+
+    if (params.isEditable) {
+      menu.append(new MenuItem({ label: 'Cortar', role: 'cut', enabled: params.editFlags.canCut }));
+      menu.append(new MenuItem({ label: 'Copiar', role: 'copy', enabled: params.editFlags.canCopy }));
+      menu.append(new MenuItem({ label: 'Pegar', role: 'paste', enabled: params.editFlags.canPaste }));
+      menu.append(new MenuItem({ type: 'separator' }));
+      menu.append(new MenuItem({ label: 'Seleccionar todo', role: 'selectAll' }));
+    } else if (params.selectionText) {
+      menu.append(new MenuItem({ label: 'Copiar', role: 'copy' }));
+    }
+
+    if (menu.items.length > 0) {
+      menu.popup();
+    }
   });
 
   return mainWindow;
