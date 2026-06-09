@@ -155,7 +155,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="app-logo">T</div>
                   <div className="app-details">
                     <h2>Tabula</h2>
-                    <p className="app-version">Version 0.0.4 (Production)</p>
+                    <p className="app-version">Version 0.0.5 (Production)</p>
                     <p className="app-desc">A personal, local, ultra-fast note editor.</p>
                   </div>
                 </div>

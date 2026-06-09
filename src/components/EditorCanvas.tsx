@@ -49,7 +49,7 @@ const EditableBlock: React.FC<EditableBlockProps> = React.memo(({
 }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const isComposing = useRef(false);
-  const lastSyncedContent = useRef(block.content);
+  const lastSyncedContent = useRef<string | null>(null);
 
   useEffect(() => {
     if (ref.current && block.content !== lastSyncedContent.current) {
@@ -144,7 +144,7 @@ const CodeBlock: React.FC<CodeBlockProps> = React.memo(({
 }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const isComposing = useRef(false);
-  const lastSyncedContent = useRef(block.content);
+  const lastSyncedContent = useRef<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {

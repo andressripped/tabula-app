@@ -204,24 +204,31 @@ function App() {
 
   const activePage = pages.find(p => p.id === activePageId);
 
-  const handleUpdatePage = (updatedPage: Page) => {
-    setPages(pages.map(p => p.id === updatedPage.id ? { ...updatedPage, updatedAt: Date.now() } : p));
-  };
+  const handleUpdatePage = useCallback((updatedPage: Page) => {
+    setPages(prevPages => prevPages.map(p => p.id === updatedPage.id ? { ...updatedPage, updatedAt: Date.now() } : p));
+  }, []);
 
-  const handleCreatePage = () => {
+  const handleCreatePage = useCallback(() => {
     const newPage = createEmptyPage();
-    setPages([newPage, ...pages]);
+    setPages(prevPages => [newPage, ...prevPages]);
     setActivePageId(newPage.id);
-  };
+  }, []);
 
-  const handleDeletePage = (id: string) => {
-    const pageToDelete = pages.find(p => p.id === id);
-    if (pageToDelete) setTrash(prev => [pageToDelete, ...prev]);
-    const newPages = pages.filter(p => p.id !== id);
-    setPages(newPages);
-    if (activePageId === id) setActivePageId(newPages.length > 0 ? newPages[0].id : null);
+  const handleDeletePage = useCallback((id: string) => {
+    setPages(prevPages => {
+      const pageToDelete = prevPages.find(p => p.id === id);
+      if (pageToDelete) setTrash(prev => [pageToDelete, ...prev]);
+      const newPages = prevPages.filter(p => p.id !== id);
+      setActivePageId(prevActiveId => {
+        if (prevActiveId === id) {
+          return newPages.length > 0 ? newPages[0].id : null;
+        }
+        return prevActiveId;
+      });
+      return newPages;
+    });
     setFavoriteIds(prev => prev.filter(fid => fid !== id));
-  };
+  }, []);
 
   const handleRestoreFromTrash = useCallback((id: string) => {
     const pageToRestore = trash.find(p => p.id === id);
