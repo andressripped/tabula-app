@@ -204,3 +204,14 @@
   color: var(--text-secondary);
   margin-top: 2px;
 }
+
+.editor-footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-tertiary);
+  display: flex;
+  justify-content: flex-end;
+  user-select: none;
+}

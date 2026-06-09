@@ -208,6 +208,8 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
     }
   };
 
+  const totalCharacters = page.blocks.reduce((acc, block) => acc + block.content.length, 0);
+
   const filteredCommands = COMMANDS.filter(cmd => 
     cmd.label.toLowerCase().includes(commandQuery.toLowerCase()) || 
     cmd.command.toLowerCase().includes(commandQuery.toLowerCase())
@@ -251,6 +253,10 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({ page, onUpdate }) => {
               />
             </div>
           ))}
+        </div>
+        
+        <div className="editor-footer">
+          <span>{totalCharacters} caracteres</span>
         </div>
       </div>
 
