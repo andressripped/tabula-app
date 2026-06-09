@@ -409,6 +409,14 @@ function App() {
     setAiStatus(prev => ({ ...prev, llm: 'idle' }));
   }, []);
 
+  const handleDeleteLLM = useCallback(() => {
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: 'delete-llm' });
+    }
+    setAiStatus(prev => ({ ...prev, llm: 'idle' }));
+    setAiProgress(prev => ({ ...prev, llm: { progress: 0, loaded: 0, total: 0, file: '' } }));
+  }, []);
+
   const activePage = pages.find(p => p.id === activePageId);
 
   const handleUpdatePage = useCallback((updaterOrPage: Page | ((page: Page) => Page)) => {
@@ -551,6 +559,7 @@ function App() {
         onInitEmbedding={handleInitEmbedding}
         onInitLLM={handleInitLLM}
         onCancelLLM={handleCancelLLM}
+        onDeleteLLM={handleDeleteLLM}
         appVersion={appVersion}
       />
 

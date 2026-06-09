@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Page } from '../App';
-import logoImg from '../assets/logo.png';
+import logoImg from '../assets/logo.svg';
 import './Sidebar.css';
 
 interface SidebarProps {

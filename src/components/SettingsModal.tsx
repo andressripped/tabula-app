@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import logoImg from '../assets/logo.png';
+import logoImg from '../assets/logo.svg';
 import './SettingsModal.css';
 
 export type ThemeMode = 'dark' | 'light';
@@ -59,6 +59,7 @@ interface SettingsModalProps {
   onInitEmbedding: () => void;
   onInitLLM: () => void;
   onCancelLLM: () => void;
+  onDeleteLLM: () => void;
   appVersion: string;
 }
 
@@ -77,6 +78,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onInitEmbedding,
   onInitLLM,
   onCancelLLM,
+  onDeleteLLM,
   appVersion
 }) => {
   const [activeTab, setActiveTab] = useState<'about' | 'appearance' | 'ai'>('appearance');
@@ -292,12 +294,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="setting-group">
                   <h3>Asistente de IA Offline (Generador)</h3>
                   <p className="setting-desc" style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '12px' }}>
-                    Genera bloques de texto, ideas o estructuras como tablas directamente en tus notas sin enviar datos a internet. Requiere el modelo TinyLlama-1.1B (~350 MB cuantizado a 4-bit).
+                    Genera bloques de texto, tablas e ideas directamente en tus notas sin internet. Usa LaMini-Flan-T5 (~248 MB), modelo seq2seq optimizado para instrucciones — mucho más rápido que un LLM clásico.
                   </p>
                   <div className="ai-model-status-container" style={{ marginTop: '10px' }}>
                     {aiStatus.llm === 'idle' && (
                       <button className="primary-btn" onClick={onInitLLM}>
-                        Descargar Asistente de IA (~350 MB)
+                        Descargar Asistente de IA (~248 MB)
                       </button>
                     )}
                     {aiStatus.llm === 'loading' && (
@@ -335,7 +337,35 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     )}
                     {(aiStatus.llm === 'ready' || aiStatus.llm === 'generating') && (
-                      <span className="success-text" style={{ color: '#30d158', fontWeight: 500, fontSize: '14px' }}>✓ Asistente de IA Listo (Escribe /ai en el editor)</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        <span className="success-text" style={{ color: '#30d158', fontWeight: 500, fontSize: '14px' }}>✓ Asistente de IA Listo (Escribe /ai en el editor)</span>
+                        <button
+                          onClick={() => {
+                            if (window.confirm('¿Eliminar el modelo de IA descargado? Tendrás que volver a descargarlo para usarlo.')) {
+                              onDeleteLLM();
+                            }
+                          }}
+                          title="Eliminar modelo descargado"
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '11px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(255, 59, 48, 0.4)',
+                            background: 'rgba(255, 59, 48, 0.08)',
+                            color: '#ff3b30',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          </svg>
+                          Eliminar modelo
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

@@ -385,7 +385,7 @@ const AIBlock: React.FC<AIBlockProps> = ({ aiStatus, onGenerate, onCancel, onIni
       {aiStatus.llm === 'idle' || aiStatus.llm === 'loading' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
-            El Asistente de IA requiere descargar un modelo de lenguaje local (~950 MB). Puedes descargarlo aquí o desde Ajustes.
+            El Asistente de IA requiere descargar un modelo de lenguaje local (~350 MB). Puedes descargarlo aquí o desde Ajustes.
           </p>
           <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
             {aiStatus.llm === 'loading' ? (
@@ -434,7 +434,6 @@ const AIBlock: React.FC<AIBlockProps> = ({ aiStatus, onGenerate, onCancel, onIni
               className="close-btn"
               onClick={onCancel}
               style={{ fontSize: '12px', padding: '6px 14px', border: '1px solid var(--border)', borderRadius: '6px', background: 'transparent', cursor: 'pointer' }}
-              disabled={aiStatus.llm === 'generating'}
             >
               Cancelar
             </button>
